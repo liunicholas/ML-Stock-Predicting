@@ -19,9 +19,14 @@ import pandas as pd
 import cv2
 from yfinance import *
 
+#very short documentation
+#https://pypi.org/project/yfinance/
+
 def getData(stockName):
     stock = Ticker(stockName)
-    hist = stock.history(period="1mo")
+    hist = stock.history(start="2019-01-01", end="2021-04-30")
+
+    print(hist)
 
     # dates = pd.to_datetime(hist.index, format='%Y-%m-%d %H:%M:%S.%f')
     # hist.set_index(dates,inplace=True)
@@ -52,7 +57,7 @@ def displayStock(data, ticker):
     plt.show()
 
 def main():
-    ticker = "TSLA"
+    ticker = "AAPL"
     hist = getData(ticker)
 
     displayStock(hist, ticker)

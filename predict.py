@@ -12,10 +12,10 @@ import tensorflow.keras.datasets as datasets
 import tensorflow.keras.optimizers as optimizers
 import tensorflow.keras.losses as losses
 import sklearn.preprocessing as preprocessing
-# import tensorflow.keras.preprocessing as preprocessing
 from tensorflow.keras.layers.experimental import preprocessing as preprocessing2
 import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
 import cv2
 from yfinance import *
 
@@ -24,23 +24,26 @@ from yfinance import *
 # terminalOutput = open("terminalOutput.txt", "w")
 # sys.stdout = terminalOutput
 
-# fout = open('test.txt', 'w')
-now = time.strftime("%H:%M:%S", time.localtime())
-print("[TIMER] Process Time:", now)
-# print("[TIMER] Process Time:", now, flush = True)
+# devices = tf.config.list_physical_devices('GPU')
+# if len(devices) > 0:
+#     print('[INFO] GPU is detected.')
+#     # print('[INFO] GPU is detected.', flush = True)
+# else:
+#     print('[INFO] GPU not detected.')
+#     # print('[INFO] GPU not detected.', flush = True)
+# print('[INFO] Done importing packages.')
+# # print('[INFO] Done importing packages.', flush = True)
 
-# File location to save to or load from
-# MODEL_SAVE_PATH = './boston.pth'
 # Set to zero to use above saved model
 TRAIN_EPOCHS = 10
-# If you want to save the model at every epoch in a subfolder set to 'True'
-SAVE_EPOCHS = False
-# If you just want to save the final output in current folder, set to 'True'
-SAVE_LAST = False
+# # If you want to save the model at every epoch in a subfolder set to 'True'
+# SAVE_EPOCHS = False
+# # If you just want to save the final output in current folder, set to 'True
+# SAVE_LAST = False
 BATCH_SIZE_TRAIN = 16
 BATCH_SIZE_TEST = 16
 
-TRAIN = False
+TRAIN = True
 LOAD = False
 
 def generator(batchSize, x, y):
@@ -56,21 +59,67 @@ def generator(batchSize, x, y):
                 index=0
         yield np.array(batchX), np.array(batchY)
 
-def getData(stockName):
+def getData(stockName, startDate, endDate):
     stock = Ticker(stockName)
-    hist = stock.history(period="max")
+    hist = stock.history(start=startDate, end=endDate)
 
-    print(hist)
+    # print(hist)
 
-devices = tf.config.list_physical_devices('GPU')
-if len(devices) > 0:
-    print('[INFO] GPU is detected.')
-    # print('[INFO] GPU is detected.', flush = True)
-else:
-    print('[INFO] GPU not detected.')
-    # print('[INFO] GPU not detected.', flush = True)
-print('[INFO] Done importing packages.')
-# print('[INFO] Done importing packages.', flush = True)
+    # dates = pd.to_datetime(hist.index, format='%Y-%m-%d %H:%M:%S.%f')
+    # hist.set_index(dates,inplace=True)
+
+    # print(hist)
+    return hist
+
+def displayStock(data, ticker):
+    hist = data
+
+    histNP = hist.to_numpy()
+    #to get columns
+    histNP = np.transpose(histNP)
+    open = histNP[0]
+    high = histNP[1]
+    low = histNP[2]
+    close = histNP[3]
+
+    # print(histNP)
+    fig = plt.figure(f"{ticker} stock price", figsize=(10, 4))
+    plt1 = fig.add_subplot(111)
+    plt1.title.set_text("stock price")
+    plt1.plot(hist.index, open, color="yellow", label="open")
+    plt1.plot(hist.index, high, color="green", label="high")
+    plt1.plot(hist.index, low, color="red", label="low")
+    plt1.plot(hist.index, close, color="orange", label="close")
+    plt1.legend(loc='upper left')
+    plt.show()
+
+def getXY(hist):
+    histNP = hist.to_numpy()
+    #to get columns
+    # histNP = np.transpose(histNP)
+    # open = histNP[0]
+    # high = histNP[1]
+    # low = histNP[2]
+    # close = histNP[3]
+
+    # histNP = np.transpose(histNP)
+    #all columns
+    # print(histNP)
+    X = np.copy(histNP)
+    index = histNP.shape[0]-1
+    X = np.delete(X, index, 0)
+    # X = np.delete(X, [0,1,2,3], 1)
+    # print(X)
+
+    histNP = np.transpose(histNP)
+    #just high
+    Y = histNP[1]
+    Y = np.delete(Y, 0)
+    Y = Y.flatten()
+
+    print(X.shape, Y.shape)
+
+    return X, Y
 
 class Net():
     def __init__(self, input_shape):
@@ -83,20 +132,20 @@ class Net():
         # Popular keyword choices: strides (default is strides=1), padding (="valid" means 0, ="same" means whatever gives same output width/height as input).  Not sure yet what to do if you want some other padding.
         # Activation function is built right into the Conv2D function as a keyword argument.
 
-        self.model.add(layers.Conv1D(16, 3, input_shape = input_shape, activation = 'relu'))
+        self.model.add(layers.Conv1D(8, 3, input_shape = input_shape, activation = 'relu'))
         self.model.add(layers.BatchNormalization(trainable=False))
 
         # For MaxPooling2D, default strides is equal to pool_size.  Batch and layers are assumed to match whatever comes in.
         # self.model.add(layers.MaxPooling2D(pool_size = 2))
 
-        self.model.add(layers.Conv1D(32, 3, activation = 'relu'))
+        self.model.add(layers.Conv1D(16, 3, activation = 'relu'))
         self.model.add(layers.BatchNormalization(trainable=False))
         # # In our example, we are now at 10 x 10 x 16.
-        self.model.add(layers.Conv1D(64, 3, activation = 'relu'))
-        self.model.add(layers.BatchNormalization(trainable=False))
-
-        self.model.add(layers.Conv1D(128, 3, activation = 'relu'))
-        self.model.add(layers.BatchNormalization(trainable=False))
+        # self.model.add(layers.Conv1D(32, 3, activation = 'relu'))
+        # self.model.add(layers.BatchNormalization(trainable=False))
+        #
+        # self.model.add(layers.Conv1D(64, 3, activation = 'relu'))
+        # self.model.add(layers.BatchNormalization(trainable=False))
 
         # self.model.add(layers.MaxPooling1D(pool_size = 2))
 
@@ -128,19 +177,15 @@ class Net():
 
     def print_summary(self, summaryStr):
         print(summaryStr)
-        # print(summaryStr, file=fout)
 
 print("[INFO] Loading Traning and Test Datasets.")
-print("[INFO] Loading Traning and Test Datasets.")
 
-getData("TSLA")
+histTrain = getData("TSLA", "2019-01-01", "2020-01-01")
+histTest = getData("TSLA", "2020-01-01", "2021-01-01")
 
-#get the boston housing training set
-#test_split determiones how much of the data set to be test, and seed is a random number to randomize
-((trainX, trainY), (testX, testY)) = datasets.boston_housing.load_data(test_split=0.2, seed=113)
-# Convert from integers 0-255 to decimals 0-1.
-# trainX = trainX.astype("float") / 255.0
-# testX = testX.astype("float") / 255.0
+trainX, trainY = getXY(histTrain)
+# print(trainX)
+testX, testY = getXY(histTest)
 
 # np.transpose(trainX)
 # maxes = []
@@ -166,54 +211,17 @@ getData("TSLA")
 # np.transpose(testX)
 
 #normalization
-# normalizer = preprocessing2.Normalization()
-trainX = np.transpose(trainX)
+
 pt = preprocessing.PowerTransformer()
-trainX = pt.fit_transform(trainX)
-# trainX = preprocessing.scale(trainX)
+
 trainX = np.transpose(trainX)
-# for row in trainX:
-#     max = max(row)
-#     min = min(row)
-#     for item in row
+trainX = pt.fit_transform(trainX)
+trainX = np.transpose(trainX)
 
-# normalizer.adapt(trainX)
-
-# normalizer = preprocessing2.Normalization()
 testX = np.transpose(testX)
-# testX = preprocessing.scale(testX)
 testX = pt.fit_transform(testX)
 testX = np.transpose(testX)
-# normalizer.adapt(testX)
 
-# trainX = np.transpose(trainX)
-# for row in trainX:
-#     print(max(row), min(row))
-# trainX = np.transpose(trainX)
-
-# print("convert to int")
-# print(type(trainY))
-# trainY = [int(x) for x in trainY]
-# testY = [int(x) for x in testY]
-# trainY = trainY.astype(int)
-# testY = testY.astype(int)
-
-# d = preprocessing.KBinsDiscretizer(n_bins=50, encode='ordinal', strategy='uniform')
-# trainY.reshape(-1, 1)
-# print(trainY)
-# d.fit(trainY)
-# testY.reshape(-1, 1)
-# d.fit(testY)
-
-# Convert labels from integers to vectors.
-
-# lb = preprocessing.LabelBinarizer()
-# trainY = lb.fit_transform(trainY)
-# testY = lb.fit_transform(testY)
-
-# targets = range(1,50)
-# preprocessing.label_binarize(trainY, classes=targets)
-# preprocessing.label_binarize(testY, classes=targets)
 
 #trying to use conv 1d
 #number of rows, columns/row, 1
@@ -222,9 +230,11 @@ print(trainX.shape)
 testX = testX.reshape(testX.shape[0], testX.shape[1], 1)
 print(testX.shape)
 
+# print(testX)
+
 if TRAIN:
     #this works but need to figure out why
-    net=Net((13,1))
+    net=Net((7,1))
     # Notice that this will print both to console and to file.
     print(net)
 
@@ -238,44 +248,21 @@ if TRAIN:
     theModel = net.model.evaluate(testX, testY)
 
     predictions = net.model.predict(testX).flatten()
+    # print(testX.shape)
+    # print(predictions.shape)
 
-    #dont use this, i need a histogram
-    # fig = plt.figure("real vs preds")
-    # fig.tight_layout()
-    # # plt1 = fig.add_subplot(221)
-    # # plt2 = fig.add_subplot(212)
-    # plt2 = fig.add_subplot()
-    # # plt3 = fig.add_subplot(211)
-    # # plt2.title.set_text("testing values")
-    # # plt3.title.set_text("all values")
-    # #put testing category on x axis and house price on y axis
-    # plt2.scatter(testY, predictions, c='black', marker='*', alpha=0.5)
-    # # plt2.scatter(testX, preds, c='red', marker='|', alpha=0.5, label='predicted values')
-    # # plt3.scatter(dataX, dataY, c='black', marker='.', alpha=0.5)
-    # # pyplot.subplots_adjust(top=1.5)
-    # plt2.legend(loc='lower right')
-    # plt.show()
-
-    fig = plt.figure("preds vs real", figsize=(10, 8))
+    fig = plt.figure("preds vs real high price", figsize=(10, 8))
     fig.tight_layout()
-    plt1 = fig.add_subplot(221)
-    plt1.title.set_text("histogram of preds vs real")
-    plt1.hist2d(testY, predictions, bins=100)
-    plt2 = fig.add_subplot(222)
-    plt2.title.set_text("best fit line of preds vs real")
-    plt2.scatter(testY, predictions)
-    m, b = np.polyfit(testY, predictions, 1)
-    plt2.plot(testY,m*testY+b)
-    plt3 = fig.add_subplot(223)
-    plt3.title.set_text("training and validation loss")
-    plt3.plot(np.arange(0, TRAIN_EPOCHS), results.history['loss'], color="green", label="real")
-    plt3.plot(np.arange(0, TRAIN_EPOCHS), results.history['val_loss'], color="red", label="preds")
-    plt3.legend(loc='upper right')
-    plt4 = fig.add_subplot(224)
-    plt4.title.set_text("training and validation mse")
-    plt4.plot(np.arange(0, TRAIN_EPOCHS), results.history['mse'],color="green", label="real")
-    plt4.plot(np.arange(0, TRAIN_EPOCHS), results.history['val_mse'], color="red", label="preds")
-    plt4.legend(loc='upper right')
+    plt1 = fig.add_subplot(211)
+    plt1.title.set_text("training and validation loss")
+    plt1.plot(np.arange(0, TRAIN_EPOCHS), results.history['loss'], color="green", label="real")
+    plt1.plot(np.arange(0, TRAIN_EPOCHS), results.history['val_loss'], color="red", label="preds")
+    plt1.legend(loc='upper right')
+    plt2 = fig.add_subplot(212)
+    histTest = histTest.iloc[1:]
+    plt2.plot(histTest.index, testY, color="blue", label="train")
+    plt2.plot(histTest.index, predictions, color="red", label="test")
+    plt2.legend(loc='upper right')
     plt.savefig("pyplots/newestPlot.png")
     plt.show()
 
@@ -295,28 +282,28 @@ if TRAIN:
 if LOAD:
     oldModel = tf.keras.models.load_model("./models/")
 
-    theModel = oldModel.evaluate(testX, testY)
-    predictions = oldModel.predict(testX).flatten()
-
-    fig = plt.figure("preds vs real", figsize=(10, 4))
-    fig.tight_layout()
-    plt1 = fig.add_subplot(121)
-    plt1.title.set_text("histogram of preds vs real")
-    plt1.hist2d(testY, predictions, bins=100)
-    plt2 = fig.add_subplot(122)
-    plt2.title.set_text("best fit line of preds vs real")
-    plt2.scatter(testY, predictions)
-    m, b = np.polyfit(testY, predictions, 1)
-    plt2.plot(testY,m*testY+b)
-    # plt3 = fig.add_subplot(223)
-    # plt3.title.set_text("training and validation loss")
-    # plt3.plot(np.arange(0, TRAIN_EPOCHS), results.history['loss'], color="green", label="real")
-    # plt3.plot(np.arange(0, TRAIN_EPOCHS), results.history['val_loss'], color="red", label="preds")
-    # plt3.legend(loc='upper right')
-    # plt4 = fig.add_subplot(224)
-    # plt4.title.set_text("training and validation mse")
-    # plt4.plot(np.arange(0, TRAIN_EPOCHS), results.history['mse'],color="green", label="real")
-    # plt4.plot(np.arange(0, TRAIN_EPOCHS), results.history['val_mse'], color="red", label="preds")
-    # plt4.legend(loc='upper right')
-    plt.savefig("pyplots/newestPlot.png")
-    plt.show()
+    # theModel = oldModel.evaluate(testX, testY)
+    # predictions = oldModel.predict(testX).flatten()
+    #
+    # fig = plt.figure("preds vs real", figsize=(10, 4))
+    # fig.tight_layout()
+    # plt1 = fig.add_subplot(121)
+    # plt1.title.set_text("histogram of preds vs real")
+    # plt1.hist2d(testY, predictions, bins=100)
+    # plt2 = fig.add_subplot(122)
+    # plt2.title.set_text("best fit line of preds vs real")
+    # plt2.scatter(testY, predictions)
+    # m, b = np.polyfit(testY, predictions, 1)
+    # plt2.plot(testY,m*testY+b)
+    # # plt3 = fig.add_subplot(223)
+    # # plt3.title.set_text("training and validation loss")
+    # # plt3.plot(np.arange(0, TRAIN_EPOCHS), results.history['loss'], color="green", label="real")
+    # # plt3.plot(np.arange(0, TRAIN_EPOCHS), results.history['val_loss'], color="red", label="preds")
+    # # plt3.legend(loc='upper right')
+    # # plt4 = fig.add_subplot(224)
+    # # plt4.title.set_text("training and validation mse")
+    # # plt4.plot(np.arange(0, TRAIN_EPOCHS), results.history['mse'],color="green", label="real")
+    # # plt4.plot(np.arange(0, TRAIN_EPOCHS), results.history['val_mse'], color="red", label="preds")
+    # # plt4.legend(loc='upper right')
+    # plt.savefig("pyplots/newestPlot.png")
+    # plt.show()
