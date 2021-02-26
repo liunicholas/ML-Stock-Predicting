@@ -96,30 +96,59 @@ def displayStock(data, ticker):
 def getXY(hist):
     histNP = hist.to_numpy()
     #to get columns
-    # histNP = np.transpose(histNP)
+    histNP = np.transpose(histNP)
     # open = histNP[0]
-    # high = histNP[1]
+    high = histNP[1]
     # low = histNP[2]
     # close = histNP[3]
+
+    X = []
+    Y = []
+    # print(len(high)-20)
+    for x in range(len(high)-20):
+        X.append(high[x:x+20])
+        Y.append(high[x+20])
 
     # histNP = np.transpose(histNP)
     #all columns
     # print(histNP)
-    X = np.copy(histNP)
-    index = histNP.shape[0]-1
-    X = np.delete(X, index, 0)
-    # X = np.delete(X, [0,1,2,3], 1)
-    # print(X)
-
-    histNP = np.transpose(histNP)
-    #just high
-    Y = histNP[1]
-    Y = np.delete(Y, 0)
+    # X = np.copy(histNP)
+    # index = histNP.shape[0]-1
+    # X = np.delete(X, index, 0)
+    # # X = np.delete(X, [0,1,2,3], 1)
+    # # print(X)
+    #
+    # histNP = np.transpose(histNP)
+    # #just high
+    # Y = histNP[1]
+    # Y = np.delete(Y, 0)
+    # Y = Y.flatten()
+    X = np.array(X)
+    Y = np.array(Y)
     Y = Y.flatten()
 
     print(X.shape, Y.shape)
 
     return X, Y
+
+def normalize(testX, trainX):
+    pt = preprocessing.PowerTransformer()
+
+    trainX = np.transpose(trainX)
+    trainX = pt.fit_transform(trainX)
+    trainX = np.transpose(trainX)
+
+    testX = np.transpose(testX)
+    testX = pt.fit_transform(testX)
+    testX = np.transpose(testX)
+
+    return testX, trainX
+
+def reshapeForConv(x):
+    x = x.reshape(x.shape[0], x.shape[1], 1)
+    print(x.shape)
+
+    return x
 
 class Net():
     def __init__(self, input_shape):
@@ -140,10 +169,10 @@ class Net():
 
         self.model.add(layers.Conv1D(16, 3, activation = 'relu'))
         self.model.add(layers.BatchNormalization(trainable=False))
-        # # In our example, we are now at 10 x 10 x 16.
-        # self.model.add(layers.Conv1D(32, 3, activation = 'relu'))
-        # self.model.add(layers.BatchNormalization(trainable=False))
-        #
+
+        self.model.add(layers.Conv1D(32, 3, activation = 'relu'))
+        self.model.add(layers.BatchNormalization(trainable=False))
+
         # self.model.add(layers.Conv1D(64, 3, activation = 'relu'))
         # self.model.add(layers.BatchNormalization(trainable=False))
 
@@ -152,7 +181,7 @@ class Net():
         self.model.add(layers.Flatten())
 
         # Now, we flatten to one dimension, so we go to just length 400.
-        self.model.add(layers.Dense(2400, activation = 'relu', input_shape = input_shape))
+        self.model.add(layers.Dense(2400, activation = 'relu'))
         self.model.add(layers.Dense(1200, activation = 'relu'))
         self.model.add(layers.Dense(600, activation = 'relu'))
         self.model.add(layers.Dense(300, activation = 'relu'))
@@ -180,61 +209,27 @@ class Net():
 
 print("[INFO] Loading Traning and Test Datasets.")
 
-histTrain = getData("TSLA", "2019-01-01", "2020-01-01")
-histTest = getData("TSLA", "2020-01-01", "2021-01-01")
+#PLAN: get SPY high as target and stocks in SPY as the columns in X
 
-trainX, trainY = getXY(histTrain)
-# print(trainX)
-testX, testY = getXY(histTest)
+histTrainTesla = getData("TSLA", "2011-01-01", "2019-12-31")
+histTestTesla = getData("TSLA", "2020-01-01", "2020-12-30")
 
-# np.transpose(trainX)
-# maxes = []
-# for x in trainX:
-#     maxes.append(np.amax(trainX))
-# # np.transpose(trainX)
-#
-# np.transpose(testX)
-# for x in range(12):
-#     max = np.amax(testX[x])
-#     if max > maxes[x]:
-#         maxes[x] = max
-# # np.transpose(testX)
-#
-# for x in range(12):
-#     testX[x]/maxes[x]
-#     trainX[x]/maxes[x]
-#
-# print(testX)
-# print(trainX)
-#
-# np.transpose(trainX)
-# np.transpose(testX)
+histFutureTesla = getData("TSLA", "2020-01-01", "2020-12-30")
+
+trainX, trainY = getXY(histTrainTesla)
+testX, testY = getXY(histTestTesla)
 
 #normalization
-
-pt = preprocessing.PowerTransformer()
-
-trainX = np.transpose(trainX)
-trainX = pt.fit_transform(trainX)
-trainX = np.transpose(trainX)
-
-testX = np.transpose(testX)
-testX = pt.fit_transform(testX)
-testX = np.transpose(testX)
-
+# testX, trainX = normalize(testX, trainX)
 
 #trying to use conv 1d
 #number of rows, columns/row, 1
-trainX = trainX.reshape(trainX.shape[0], trainX.shape[1], 1)
-print(trainX.shape)
-testX = testX.reshape(testX.shape[0], testX.shape[1], 1)
-print(testX.shape)
-
-# print(testX)
+trainX = reshapeForConv(trainX)
+testX = reshapeForConv(testX)
 
 if TRAIN:
     #this works but need to figure out why
-    net=Net((7,1))
+    net=Net((20,1))
     # Notice that this will print both to console and to file.
     print(net)
 
@@ -259,51 +254,12 @@ if TRAIN:
     plt1.plot(np.arange(0, TRAIN_EPOCHS), results.history['val_loss'], color="red", label="preds")
     plt1.legend(loc='upper right')
     plt2 = fig.add_subplot(212)
-    histTest = histTest.iloc[1:]
-    plt2.plot(histTest.index, testY, color="blue", label="train")
-    plt2.plot(histTest.index, predictions, color="red", label="test")
+    histTestTesla = histTestTesla.iloc[20:]
+    plt2.plot(histTestTesla.index, testY, color="blue", label="train")
+    plt2.plot(histTestTesla.index, predictions, color="red", label="test")
     plt2.legend(loc='upper right')
     plt.savefig("pyplots/newestPlot.png")
     plt.show()
 
-    # terminalOutput.close()
-
-    # print(theModel)
-    # print(predictions)
-
-    # # plt.figure()
-    # plt.plot(np.arange(0, TRAIN_EPOCHS), results.history['loss'])
-    # plt.plot(np.arange(0, TRAIN_EPOCHS), results.history['val_loss'])
-    # plt.show()
-    # plt.plot(np.arange(0, TRAIN_EPOCHS), results.history['mae'])
-    # plt.plot(np.arange(0, TRAIN_EPOCHS), results.history['val_mae'])
-    # plt.show()
-
 if LOAD:
     oldModel = tf.keras.models.load_model("./models/")
-
-    # theModel = oldModel.evaluate(testX, testY)
-    # predictions = oldModel.predict(testX).flatten()
-    #
-    # fig = plt.figure("preds vs real", figsize=(10, 4))
-    # fig.tight_layout()
-    # plt1 = fig.add_subplot(121)
-    # plt1.title.set_text("histogram of preds vs real")
-    # plt1.hist2d(testY, predictions, bins=100)
-    # plt2 = fig.add_subplot(122)
-    # plt2.title.set_text("best fit line of preds vs real")
-    # plt2.scatter(testY, predictions)
-    # m, b = np.polyfit(testY, predictions, 1)
-    # plt2.plot(testY,m*testY+b)
-    # # plt3 = fig.add_subplot(223)
-    # # plt3.title.set_text("training and validation loss")
-    # # plt3.plot(np.arange(0, TRAIN_EPOCHS), results.history['loss'], color="green", label="real")
-    # # plt3.plot(np.arange(0, TRAIN_EPOCHS), results.history['val_loss'], color="red", label="preds")
-    # # plt3.legend(loc='upper right')
-    # # plt4 = fig.add_subplot(224)
-    # # plt4.title.set_text("training and validation mse")
-    # # plt4.plot(np.arange(0, TRAIN_EPOCHS), results.history['mse'],color="green", label="real")
-    # # plt4.plot(np.arange(0, TRAIN_EPOCHS), results.history['val_mse'], color="red", label="preds")
-    # # plt4.legend(loc='upper right')
-    # plt.savefig("pyplots/newestPlot.png")
-    # plt.show()
