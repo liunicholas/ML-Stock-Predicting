@@ -22,9 +22,9 @@ from yfinance import *
 #very short documentation
 #https://pypi.org/project/yfinance/
 
-def getData(stockName):
+def getData(stockName, start, end):
     stock = Ticker(stockName)
-    hist = stock.history(start="2019-01-01", end="2021-04-30")
+    hist = stock.history(start=start, end=end)
 
     print(hist)
 
@@ -57,8 +57,10 @@ def displayStock(data, ticker):
     plt.show()
 
 def main():
-    ticker = "AAPL"
-    hist = getData(ticker)
+    ticker = "TSLA"
+    start = "2020-01-01"
+    end = "2020-12-30"
+    hist = getData(ticker, start, end)
 
     displayStock(hist, ticker)
 

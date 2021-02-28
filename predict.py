@@ -213,11 +213,11 @@ print("[INFO] Loading Traning and Test Datasets.")
 
 histTrainTesla = getData("TSLA", "2011-01-01", "2019-12-31")
 histTestTesla = getData("TSLA", "2020-01-01", "2020-12-30")
-
 histFutureTesla = getData("TSLA", "2020-01-01", "2020-12-30")
 
 trainX, trainY = getXY(histTrainTesla)
 testX, testY = getXY(histTestTesla)
+futureX, futureY = getXY(histFutureTesla)
 
 #normalization
 # testX, trainX = normalize(testX, trainX)
@@ -226,6 +226,7 @@ testX, testY = getXY(histTestTesla)
 #number of rows, columns/row, 1
 trainX = reshapeForConv(trainX)
 testX = reshapeForConv(testX)
+futureX = reshapeForConv(futureX)
 
 if TRAIN:
     #this works but need to figure out why
@@ -234,15 +235,27 @@ if TRAIN:
     print(net)
 
     results = net.model.fit(generator(BATCH_SIZE_TRAIN, trainX, trainY), validation_data=generator(BATCH_SIZE_TEST, testX, testY), shuffle = True, epochs = TRAIN_EPOCHS, batch_size = BATCH_SIZE_TRAIN, validation_batch_size = BATCH_SIZE_TEST, verbose = 1, steps_per_epoch=len(trainX)/BATCH_SIZE_TRAIN, validation_steps=len(testX)/BATCH_SIZE_TEST)
+    #dont need the batch_size=4
+    # theModel = net.model.evaluate(testX, testY)
 
     net.model.save("./models")
 
-    # tf.io.write_file("newestRun.txt", results)
+    #predict future values based off predicted values
+    histFutureTesla = histFutureTesla.iloc[20:]
+    predictions = []
+    past20 = np.array([futureX[0]])
+    # print(past20)
+    for i in range(len(futureY)):
+        prediction = net.model.predict(past20).flatten()
+        print(prediction)
+        predictions.append(prediction)
+        past20P = past20.tolist()
+        # print(type(past20P))
+        past20P[0].pop(0)
+        past20P[0].append(np.array([prediction]))
+        past20 = np.array(past20P).astype(np.float)
+        # print(past20)
 
-    #dont need the batch_size=4
-    theModel = net.model.evaluate(testX, testY)
-
-    predictions = net.model.predict(testX).flatten()
     # print(testX.shape)
     # print(predictions.shape)
 
@@ -254,9 +267,8 @@ if TRAIN:
     plt1.plot(np.arange(0, TRAIN_EPOCHS), results.history['val_loss'], color="red", label="preds")
     plt1.legend(loc='upper right')
     plt2 = fig.add_subplot(212)
-    histTestTesla = histTestTesla.iloc[20:]
-    plt2.plot(histTestTesla.index, testY, color="blue", label="train")
-    plt2.plot(histTestTesla.index, predictions, color="red", label="test")
+    plt2.plot(histFutureTesla.index, futureY, color="blue", label="real 2020")
+    plt2.plot(histFutureTesla.index, predictions, color="red", label="preds 2020")
     plt2.legend(loc='upper right')
     plt.savefig("pyplots/newestPlot.png")
     plt.show()
