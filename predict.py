@@ -35,13 +35,14 @@ from yfinance import *
 # # print('[INFO] Done importing packages.', flush = True)
 
 # Set to zero to use above saved model
-TRAIN_EPOCHS = 10
+TRAIN_EPOCHS = 50
 # # If you want to save the model at every epoch in a subfolder set to 'True'
 # SAVE_EPOCHS = False
 # # If you just want to save the final output in current folder, set to 'True
 # SAVE_LAST = False
 BATCH_SIZE_TRAIN = 16
 BATCH_SIZE_TEST = 16
+graphName = "newestPlot"
 
 TRAIN = True
 LOAD = False
@@ -270,7 +271,7 @@ if TRAIN:
     plt2.plot(histFutureTesla.index, futureY, color="blue", label="real 2020")
     plt2.plot(histFutureTesla.index, predictions, color="red", label="preds 2020")
     plt2.legend(loc='upper right')
-    plt.savefig("pyplots/newestPlot.png")
+    plt.savefig(f"pyplots/{graphName}.png")
     plt.show()
 
 if LOAD:
