@@ -1,22 +1,9 @@
 # Python 3.8.6
-import time
-
-# tensorflow 2.4.0
 # matplotlib 3.3.3
 # numpy 1.19.4
-# opencv-python 4.4.0
-import tensorflow as tf
-import tensorflow.keras.models as models
-import tensorflow.keras.layers as layers
-import tensorflow.keras.datasets as datasets
-import tensorflow.keras.optimizers as optimizers
-import tensorflow.keras.losses as losses
-import sklearn.preprocessing as preprocessing
-from tensorflow.keras.layers.experimental import preprocessing as preprocessing2
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import cv2
 from yfinance import *
 
 #very short documentation

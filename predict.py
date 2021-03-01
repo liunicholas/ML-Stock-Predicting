@@ -4,7 +4,6 @@ import time
 # tensorflow 2.4.0
 # matplotlib 3.3.3
 # numpy 1.19.4
-# opencv-python 4.4.0
 import tensorflow as tf
 import tensorflow.keras.models as models
 import tensorflow.keras.layers as layers
@@ -16,7 +15,6 @@ from tensorflow.keras.layers.experimental import preprocessing as preprocessing2
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import cv2
 from yfinance import *
 
 # import sys
@@ -35,7 +33,7 @@ from yfinance import *
 # # print('[INFO] Done importing packages.', flush = True)
 
 # Set to zero to use above saved model
-TRAIN_EPOCHS = 10
+TRAIN_EPOCHS = 1
 # # If you want to save the model at every epoch in a subfolder set to 'True'
 # SAVE_EPOCHS = False
 # # If you just want to save the final output in current folder, set to 'True
@@ -187,7 +185,7 @@ class Net():
         self.model.add(layers.Dense(300, activation = 'relu'))
         self.model.add(layers.Dense(120, activation = 'relu'))
         self.model.add(layers.Dense(60, activation = 'relu'))
-        self.model.add(layers.Dense(30, activation = 'relu'))
+        self.model.add(layers.Dense(20, activation = 'relu'))
         self.model.add(layers.Dense(1))
         # Now we're at length 10, which is our number of classes.
         #lr=0.001, momentum=0.9
@@ -238,40 +236,66 @@ if TRAIN:
     #dont need the batch_size=4
     # theModel = net.model.evaluate(testX, testY)
 
+    weights = net.model.trainable_variables
+
+    # tf.compat.v1.disable_eager_execution()
+    # # init = tf.compat.v1.global_variables_initializer()
+    # with tf.compat.v1.Session() as sess:
+    #     # sess.run(init)
+    #     # numbers = weights.eval(sess)
+    #
+    #     numbers = sess.run(weights)
+
+    # sess = tf.compat.v1.Session()
+    # numbers = sess.run(weights)
+
+    # for part, vals in zip(weights, numbers):
+    for part in weights:
+        if part.name == "dense_7/kernel:0":
+            print(part)
+            vals = part.numpy()
+            sum = 0
+            for i in range(len(vals)):
+                sum += vals[i][0]
+            print(f"the sum is {sum}")
+
+    # weights = net.model.get_weights()
+    # print(weights)
+
     net.model.save("./models")
 
     #predict future values based off predicted values
-    histFutureTesla = histFutureTesla.iloc[20:]
-    predictions = []
-    past20 = np.array([futureX[0]])
+    # histFutureTesla = histFutureTesla.iloc[20:]
+    # predictions = []
+    # past20 = np.array([futureX[0]])
     # print(past20)
-    for i in range(len(futureY)):
-        prediction = net.model.predict(past20).flatten()
-        print(prediction)
-        predictions.append(prediction)
-        past20P = past20.tolist()
-        # print(type(past20P))
-        past20P[0].pop(0)
-        past20P[0].append(np.array([prediction]))
-        past20 = np.array(past20P).astype(np.float)
-        # print(past20)
-
-    # print(testX.shape)
-    # print(predictions.shape)
-
-    fig = plt.figure("preds vs real high price", figsize=(10, 8))
-    fig.tight_layout()
-    plt1 = fig.add_subplot(211)
-    plt1.title.set_text("training and validation loss")
-    plt1.plot(np.arange(0, TRAIN_EPOCHS), results.history['loss'], color="green", label="real")
-    plt1.plot(np.arange(0, TRAIN_EPOCHS), results.history['val_loss'], color="red", label="preds")
-    plt1.legend(loc='upper right')
-    plt2 = fig.add_subplot(212)
-    plt2.plot(histFutureTesla.index, futureY, color="blue", label="real 2020")
-    plt2.plot(histFutureTesla.index, predictions, color="red", label="preds 2020")
-    plt2.legend(loc='upper right')
-    plt.savefig("pyplots/newestPlot.png")
-    plt.show()
+    # for i in range(len(futureY)):
+    #     prediction = net.model.predict(past20).flatten()
+    #     print(prediction)
+    #     predictions.append(prediction)
+    #     past20P = past20.tolist()
+    #     # print(type(past20P))
+    #     past20P[0].pop(0)
+    #     past20P[0].append(np.array([prediction]))
+    #     past20 = np.array(past20P).astype(np.float)
+    #     # print(past20)
+    #
+    # # print(testX.shape)
+    # # print(predictions.shape)
+    #
+    # fig = plt.figure("preds vs real high price", figsize=(10, 8))
+    # fig.tight_layout()
+    # plt1 = fig.add_subplot(211)
+    # plt1.title.set_text("training and validation loss")
+    # plt1.plot(np.arange(0, TRAIN_EPOCHS), results.history['loss'], color="green", label="real")
+    # plt1.plot(np.arange(0, TRAIN_EPOCHS), results.history['val_loss'], color="red", label="preds")
+    # plt1.legend(loc='upper right')
+    # plt2 = fig.add_subplot(212)
+    # plt2.plot(histFutureTesla.index, futureY, color="blue", label="real 2020")
+    # plt2.plot(histFutureTesla.index, predictions, color="red", label="preds 2020")
+    # plt2.legend(loc='upper right')
+    # plt.savefig("pyplots/newestPlot.png")
+    # plt.show()
 
 if LOAD:
     oldModel = tf.keras.models.load_model("./models/")
