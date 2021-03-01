@@ -211,7 +211,7 @@ print("[INFO] Loading Traning and Test Datasets.")
 
 #PLAN: get SPY high as target and stocks in SPY as the columns in X
 
-histTrainTesla = getData("TSLA", "2011-01-01", "2019-12-31")
+histTrainTesla = getData("TSLA", "2019-01-01", "2019-12-31")
 histTestTesla = getData("TSLA", "2020-01-01", "2020-12-30")
 histFutureTesla = getData("TSLA", "2020-01-01", "2020-12-30")
 
