@@ -40,8 +40,8 @@ TRAIN_EPOCHS = 50
 # SAVE_EPOCHS = False
 # # If you just want to save the final output in current folder, set to 'True
 # SAVE_LAST = False
-BATCH_SIZE_TRAIN = 16
-BATCH_SIZE_TEST = 16
+BATCH_SIZE_TRAIN = 4
+BATCH_SIZE_TEST = 4
 graphName = "newestPlot"
 
 TRAIN = True
@@ -212,8 +212,8 @@ print("[INFO] Loading Traning and Test Datasets.")
 
 #PLAN: get SPY high as target and stocks in SPY as the columns in X
 
-histTrainTesla = getData("TSLA", "2019-01-01", "2019-12-31")
-histTestTesla = getData("TSLA", "2020-01-01", "2020-12-30")
+histTrainTesla = getData("TSLA", "2018-01-01", "2018-12-31")
+histTestTesla = getData("TSLA", "2019-01-01", "2019-12-30")
 histFutureTesla = getData("TSLA", "2020-01-01", "2020-12-30")
 
 trainX, trainY = getXY(histTrainTesla)
