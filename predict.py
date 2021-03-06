@@ -94,89 +94,25 @@ def getY(hist):
     Y = []
     #19 previous days and predict 20th day
     for y in range(len(high)-20):
-        Y.append(high[x+20])
+        Y.append(high[y+20])
 
     Y = np.array(Y)
     Y = Y.flatten()
 
     return Y
 
-def combineData(histIndex):
-    X = []
-    for i in range(histIndex.shape(1)):
-        row = []
-        for x in range(histIndex.shape(0)):
-            row.append(histIndex[i][x])
-        X.append(row)
-
-    X = np.array(X)
-
-    return X
-
-# def displayStock(data, ticker):
-#     hist = data
-#
-#     histNP = hist.to_numpy()
-#     #to get columns
-#     histNP = np.transpose(histNP)
-#     open = histNP[0]
-#     high = histNP[1]
-#     low = histNP[2]
-#     close = histNP[3]
-#
-#     # print(histNP)
-#     fig = plt.figure(f"{ticker} stock price", figsize=(10, 4))
-#     plt1 = fig.add_subplot(111)
-#     plt1.title.set_text("stock price")
-#     plt1.plot(hist.index, open, color="yellow", label="open")
-#     plt1.plot(hist.index, high, color="green", label="high")
-#     plt1.plot(hist.index, low, color="red", label="low")
-#     plt1.plot(hist.index, close, color="orange", label="close")
-#     plt1.legend(loc='upper left')
-#     plt.show()
-
-# def getXY(hist):
-#     histNP = hist.to_numpy()
-#     #to get columns
-#     histNP = np.transpose(histNP)
-#     # open = histNP[0]
-#     high = histNP[1]
-#     # low = histNP[2]
-#     # close = histNP[3]
-#
+# def combineData(histIndex):
 #     X = []
-#     Y = []
-#     #19 previous days and predict 20th day
-#     for x in range(len(high)-20):
-#         X.append(high[x:x+20])
-#         Y.append(high[x+20])
+#     print(histIndex.shape)
+#     for i in range(histIndex.shape[1]):
+#         row = []
+#         for x in range(histIndex.shape[0]):
+#             row.append(histIndex[x][i])
+#         X.append(row)
 #
 #     X = np.array(X)
-#     Y = np.array(Y)
-#     Y = Y.flatten()
 #
-#     print(X.shape, Y.shape)
-#
-#     return X, Y
-
-# def normalize(testX, trainX):
-#     pt = preprocessing.PowerTransformer()
-#
-#     trainX = np.transpose(trainX)
-#     trainX = pt.fit_transform(trainX)
-#     trainX = np.transpose(trainX)
-#
-#     testX = np.transpose(testX)
-#     testX = pt.fit_transform(testX)
-#     testX = np.transpose(testX)
-#
-#     return testX, trainX
-#
-# def reshapeForConv(x):
-#     x = x.reshape(x.shape[0], x.shape[1], 1)
-#     print(x.shape)
-#
-#     return x
+#     return X
 
 #TODO: play with nn architecture later
 class Net():
@@ -242,7 +178,7 @@ print("[INFO] Loading Traning and Test Datasets.")
 INDEX_STOCKS = ["AAPL", "MSFT", "AMZN", "FB", "GOOGL", "GOOG", "TSLA", "BRK.B", "JPM", "JNJ"]
 INDEX = "SPY"
 
-trainStart = "2011-01-01"
+trainStart = "2014-01-01"
 trainEnd = "2019-12-31"
 
 testStart = "2020-01-01"
@@ -255,16 +191,43 @@ for stock in INDEX_STOCKS:
     print(f"[INFO] Loading Dataset For {stock}.")
     train = getData(f"{stock}", trainStart, trainEnd)
     test = getData(f"{stock}", testStart, testEnd)
-    trainX = getX(train)
-    testX = getX(test)
+    trainXstock = np.transpose(getX(train))
+    testXstock = np.transpose(getX(test))
+    # trainXstock = getX(train).reshape()
+    # testXstock = getX(test).reshape()
+    print(f"stock shape: {trainXstock.shape}")
 
-    stockHistsTrainX.append(trainX)
-    stockHistsTestX.append(testX)
+    if trainXstock.shape[0] != 0:
+        trainXstock = trainXstock.reshape((1,20,-1))
+        testXstock = testXstock.reshape((1,20,-1))
+        trainXstock = np.swapaxes(trainXstock,0,1)
+        testXstock = np.swapaxes(testXstock,0,1)
+        stockHistsTrainX.append(trainXstock)
+        stockHistsTestX.append(testXstock)
+
+
+print(f"stock shape after reshape: {stockHistsTrainX[0].shape}")
+print(stockHistsTrainX[0])
+
+#must figure out how to stack these
+stockHistsTrainX = np.vstack(stockHistsTrainX)
+stockHistsTestX = np.vstack(stockHistsTestX)
+trainX = np.transpose(stockHistsTrainX)
+testX = np.transpose(stockHistsTestX)
+
+print(f"total shape: {trainX.shape}")
+
+# stockHistsTrainX = numpy.delete(stockHistsTrainX, 0)
+# stockHistsTestX = numpy.delete(stockHistsTestX, 0)
+
+# stockHistsTrainX = np.array(stockHistsTrainX)
+# stockHistsTestX = np.array(stockHistsTestX)
 
 #reorganize x data of stocks
-print("[INFO] Combining X Data.")
-trainX = combineData(stockHistsTrainX)
-testX = combineData(stockHistsTestX)
+# print("[INFO] Combining X Data.")
+# trainX = combineData(stockHistsTrainX)
+# testX = combineData(stockHistsTestX)
+# print(trainX.shape)
 
 #index target prices
 print("[INFO] Loading Index Data.")
@@ -272,11 +235,13 @@ histTrainIndex = getData(f"{INDEX}", trainStart, trainEnd)
 histTestIndex = getData(f"{INDEX}", testStart, testEnd)
 trainY = getY(histTrainIndex)
 testY = getY(histTestIndex)
+# print(f"stock shape: {trainY.shape}")
 
 if TRAIN:
-    net=Net((10, 20))
+    numStocks = len(stockHistsTrainX)
+    net=Net((numStocks, 20))
     print(net)
-    
+
     results = net.model.fit(generator(BATCH_SIZE_TRAIN, trainX, trainY), validation_data=generator(BATCH_SIZE_TEST, testX, testY), shuffle = True, epochs = TRAIN_EPOCHS, batch_size = BATCH_SIZE_TRAIN, validation_batch_size = BATCH_SIZE_TEST, verbose = 1, steps_per_epoch=len(trainX)/BATCH_SIZE_TRAIN, validation_steps=len(testX)/BATCH_SIZE_TEST)
 
     net.model.save("./models")
