@@ -34,7 +34,7 @@ print('[INFO] Done importing packages.')
 
 #TODO: custom keras callback
 # Set to zero to use above saved model
-TRAIN_EPOCHS = 50
+TRAIN_EPOCHS = 1
 # # If you want to save the model at every epoch in a subfolder set to 'True'
 # SAVE_EPOCHS = False
 # # If you just want to save the final output in current folder, set to 'True
@@ -239,18 +239,20 @@ histTrainIndex = getData(f"{INDEX}", trainStart, trainEnd)
 histTestIndex = getData(f"{INDEX}", testStart, testEnd)
 trainY = getY(histTrainIndex)
 testY = getY(histTestIndex)
+print(f"target shape: {trainY.shape}")
 # print(f"stock shape: {trainY.shape}")
 
 if TRAIN:
     numStocks = len(stockHistsTrainX)
     net=Net((numStocks, 20))
-    print(net)
+    # print(net)
 
     results = net.model.fit(generator(BATCH_SIZE_TRAIN, trainX, trainY), validation_data=generator(BATCH_SIZE_TEST, testX, testY), shuffle = True, epochs = TRAIN_EPOCHS, batch_size = BATCH_SIZE_TRAIN, validation_batch_size = BATCH_SIZE_TEST, verbose = 1, steps_per_epoch=len(trainX)/BATCH_SIZE_TRAIN, validation_steps=len(testX)/BATCH_SIZE_TEST)
 
     net.model.save("./models")
 
     predictions = net.model.predict(testX)
+    print(predictions)
 
     fig = plt.figure("preds vs real high price", figsize=(10, 8))
     fig.tight_layout()
