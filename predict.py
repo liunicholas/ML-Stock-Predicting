@@ -22,16 +22,17 @@ from yfinance import *
 # terminalOutput = open("terminalOutput.txt", "w")
 # sys.stdout = terminalOutput
 
+#TODO: make gpu work??
 # devices = tf.config.list_physical_devices('GPU')
 # if len(devices) > 0:
 #     print('[INFO] GPU is detected.')
-#     # print('[INFO] GPU is detected.', flush = True)
 # else:
 #     print('[INFO] GPU not detected.')
-#     # print('[INFO] GPU not detected.', flush = True)
-# print('[INFO] Done importing packages.')
-# # print('[INFO] Done importing packages.', flush = True)
 
+print('[INFO] Done importing packages.')
+
+
+#TODO: custom keras callback
 # Set to zero to use above saved model
 TRAIN_EPOCHS = 1
 # # If you want to save the model at every epoch in a subfolder set to 'True'
@@ -61,37 +62,9 @@ def getData(stockName, startDate, endDate):
     stock = Ticker(stockName)
     hist = stock.history(start=startDate, end=endDate)
 
-    # print(hist)
-
-    # dates = pd.to_datetime(hist.index, format='%Y-%m-%d %H:%M:%S.%f')
-    # hist.set_index(dates,inplace=True)
-
-    # print(hist)
     return hist
 
-def displayStock(data, ticker):
-    hist = data
-
-    histNP = hist.to_numpy()
-    #to get columns
-    histNP = np.transpose(histNP)
-    open = histNP[0]
-    high = histNP[1]
-    low = histNP[2]
-    close = histNP[3]
-
-    # print(histNP)
-    fig = plt.figure(f"{ticker} stock price", figsize=(10, 4))
-    plt1 = fig.add_subplot(111)
-    plt1.title.set_text("stock price")
-    plt1.plot(hist.index, open, color="yellow", label="open")
-    plt1.plot(hist.index, high, color="green", label="high")
-    plt1.plot(hist.index, low, color="red", label="low")
-    plt1.plot(hist.index, close, color="orange", label="close")
-    plt1.legend(loc='upper left')
-    plt.show()
-
-def getXY(hist):
+def getX(hist):
     histNP = hist.to_numpy()
     #to get columns
     histNP = np.transpose(histNP)
@@ -101,53 +74,111 @@ def getXY(hist):
     # close = histNP[3]
 
     X = []
-    Y = []
-    # print(len(high)-20)
+    #19 previous days and predict 20th day
     for x in range(len(high)-20):
         X.append(high[x:x+20])
+
+    X = np.array(X)
+
+    return X
+
+def getY(hist):
+    histNP = hist.to_numpy()
+    #to get columns
+    histNP = np.transpose(histNP)
+    # open = histNP[0]
+    high = histNP[1]
+    # low = histNP[2]
+    # close = histNP[3]
+
+    Y = []
+    #19 previous days and predict 20th day
+    for y in range(len(high)-20):
         Y.append(high[x+20])
 
-    # histNP = np.transpose(histNP)
-    #all columns
-    # print(histNP)
-    # X = np.copy(histNP)
-    # index = histNP.shape[0]-1
-    # X = np.delete(X, index, 0)
-    # # X = np.delete(X, [0,1,2,3], 1)
-    # # print(X)
-    #
-    # histNP = np.transpose(histNP)
-    # #just high
-    # Y = histNP[1]
-    # Y = np.delete(Y, 0)
-    # Y = Y.flatten()
-    X = np.array(X)
     Y = np.array(Y)
     Y = Y.flatten()
 
-    print(X.shape, Y.shape)
+    return Y
 
-    return X, Y
+def combineData(histIndex):
+    X = []
+    for i in range(histIndex.shape(1)):
+        row = []
+        for x in range(histIndex.shape(0)):
+            row.append(histIndex[i][x])
+        X.append(row)
 
-def normalize(testX, trainX):
-    pt = preprocessing.PowerTransformer()
+    X = np.array(X)
 
-    trainX = np.transpose(trainX)
-    trainX = pt.fit_transform(trainX)
-    trainX = np.transpose(trainX)
+    return X
 
-    testX = np.transpose(testX)
-    testX = pt.fit_transform(testX)
-    testX = np.transpose(testX)
+# def displayStock(data, ticker):
+#     hist = data
+#
+#     histNP = hist.to_numpy()
+#     #to get columns
+#     histNP = np.transpose(histNP)
+#     open = histNP[0]
+#     high = histNP[1]
+#     low = histNP[2]
+#     close = histNP[3]
+#
+#     # print(histNP)
+#     fig = plt.figure(f"{ticker} stock price", figsize=(10, 4))
+#     plt1 = fig.add_subplot(111)
+#     plt1.title.set_text("stock price")
+#     plt1.plot(hist.index, open, color="yellow", label="open")
+#     plt1.plot(hist.index, high, color="green", label="high")
+#     plt1.plot(hist.index, low, color="red", label="low")
+#     plt1.plot(hist.index, close, color="orange", label="close")
+#     plt1.legend(loc='upper left')
+#     plt.show()
 
-    return testX, trainX
+# def getXY(hist):
+#     histNP = hist.to_numpy()
+#     #to get columns
+#     histNP = np.transpose(histNP)
+#     # open = histNP[0]
+#     high = histNP[1]
+#     # low = histNP[2]
+#     # close = histNP[3]
+#
+#     X = []
+#     Y = []
+#     #19 previous days and predict 20th day
+#     for x in range(len(high)-20):
+#         X.append(high[x:x+20])
+#         Y.append(high[x+20])
+#
+#     X = np.array(X)
+#     Y = np.array(Y)
+#     Y = Y.flatten()
+#
+#     print(X.shape, Y.shape)
+#
+#     return X, Y
 
-def reshapeForConv(x):
-    x = x.reshape(x.shape[0], x.shape[1], 1)
-    print(x.shape)
+# def normalize(testX, trainX):
+#     pt = preprocessing.PowerTransformer()
+#
+#     trainX = np.transpose(trainX)
+#     trainX = pt.fit_transform(trainX)
+#     trainX = np.transpose(trainX)
+#
+#     testX = np.transpose(testX)
+#     testX = pt.fit_transform(testX)
+#     testX = np.transpose(testX)
+#
+#     return testX, trainX
+#
+# def reshapeForConv(x):
+#     x = x.reshape(x.shape[0], x.shape[1], 1)
+#     print(x.shape)
+#
+#     return x
 
-    return x
-
+#TODO: play with nn architecture later
 class Net():
     def __init__(self, input_shape):
         # input_shape is assumed to be 4 dimensions: 1. Batch Size, 2. Image Width, 3. Image Height, 4. Number of Channels.
@@ -207,95 +238,64 @@ class Net():
 
 print("[INFO] Loading Traning and Test Datasets.")
 
-#PLAN: get SPY high as target and stocks in SPY as the columns in X
+#PLAN: make each row a set of stocks in an index
+INDEX_STOCKS = ["AAPL", "MSFT", "AMZN", "FB", "GOOGL", "GOOG", "TSLA", "BRK.B", "JPM", "JNJ"]
+INDEX = "SPY"
 
-histTrainTesla = getData("TSLA", "2011-01-01", "2019-12-31")
-histTestTesla = getData("TSLA", "2020-01-01", "2020-12-30")
-histFutureTesla = getData("TSLA", "2020-01-01", "2020-12-30")
+trainStart = "2011-01-01"
+trainEnd = "2019-12-31"
 
-trainX, trainY = getXY(histTrainTesla)
-testX, testY = getXY(histTestTesla)
-futureX, futureY = getXY(histFutureTesla)
+testStart = "2020-01-01"
+testEnd = "2020-12-30"
 
-#normalization
-# testX, trainX = normalize(testX, trainX)
+#get all the stock data
+stockHistsTrainX = []
+stockHistsTestX = []
+for stock in INDEX_STOCKS:
+    print(f"[INFO] Loading Dataset For {stock}.")
+    train = getData(f"{stock}", trainStart, trainEnd)
+    test = getData(f"{stock}", testStart, testEnd)
+    trainX = getX(train)
+    testX = getX(test)
 
-#trying to use conv 1d
-#number of rows, columns/row, 1
-trainX = reshapeForConv(trainX)
-testX = reshapeForConv(testX)
-futureX = reshapeForConv(futureX)
+    stockHistsTrainX.append(trainX)
+    stockHistsTestX.append(testX)
+
+#reorganize x data of stocks
+print("[INFO] Combining X Data.")
+trainX = combineData(stockHistsTrainX)
+testX = combineData(stockHistsTestX)
+
+#index target prices
+print("[INFO] Loading Index Data.")
+histTrainIndex = getData(f"{INDEX}", trainStart, trainEnd)
+histTestIndex = getData(f"{INDEX}", testStart, testEnd)
+trainY = getY(histTrainIndex)
+testY = getY(histTestIndex)
 
 if TRAIN:
-    #this works but need to figure out why
-    net=Net((20,1))
-    # Notice that this will print both to console and to file.
+    net=Net((10, 20))
     print(net)
-
+    
     results = net.model.fit(generator(BATCH_SIZE_TRAIN, trainX, trainY), validation_data=generator(BATCH_SIZE_TEST, testX, testY), shuffle = True, epochs = TRAIN_EPOCHS, batch_size = BATCH_SIZE_TRAIN, validation_batch_size = BATCH_SIZE_TEST, verbose = 1, steps_per_epoch=len(trainX)/BATCH_SIZE_TRAIN, validation_steps=len(testX)/BATCH_SIZE_TEST)
-    #dont need the batch_size=4
-    # theModel = net.model.evaluate(testX, testY)
-
-    weights = net.model.trainable_variables
-
-    # tf.compat.v1.disable_eager_execution()
-    # # init = tf.compat.v1.global_variables_initializer()
-    # with tf.compat.v1.Session() as sess:
-    #     # sess.run(init)
-    #     # numbers = weights.eval(sess)
-    #
-    #     numbers = sess.run(weights)
-
-    # sess = tf.compat.v1.Session()
-    # numbers = sess.run(weights)
-
-    # for part, vals in zip(weights, numbers):
-    for part in weights:
-        if part.name == "dense_7/kernel:0":
-            print(part)
-            vals = part.numpy()
-            sum = 0
-            for i in range(len(vals)):
-                sum += vals[i][0]
-            print(f"the sum is {sum}")
-
-    # weights = net.model.get_weights()
-    # print(weights)
 
     net.model.save("./models")
 
-    #predict future values based off predicted values
-    # histFutureTesla = histFutureTesla.iloc[20:]
-    # predictions = []
-    # past20 = np.array([futureX[0]])
-    # print(past20)
-    # for i in range(len(futureY)):
-    #     prediction = net.model.predict(past20).flatten()
-    #     print(prediction)
-    #     predictions.append(prediction)
-    #     past20P = past20.tolist()
-    #     # print(type(past20P))
-    #     past20P[0].pop(0)
-    #     past20P[0].append(np.array([prediction]))
-    #     past20 = np.array(past20P).astype(np.float)
-    #     # print(past20)
-    #
-    # # print(testX.shape)
-    # # print(predictions.shape)
-    #
-    # fig = plt.figure("preds vs real high price", figsize=(10, 8))
-    # fig.tight_layout()
-    # plt1 = fig.add_subplot(211)
-    # plt1.title.set_text("training and validation loss")
-    # plt1.plot(np.arange(0, TRAIN_EPOCHS), results.history['loss'], color="green", label="real")
-    # plt1.plot(np.arange(0, TRAIN_EPOCHS), results.history['val_loss'], color="red", label="preds")
-    # plt1.legend(loc='upper right')
-    # plt2 = fig.add_subplot(212)
-    # plt2.plot(histFutureTesla.index, futureY, color="blue", label="real 2020")
-    # plt2.plot(histFutureTesla.index, predictions, color="red", label="preds 2020")
-    # plt2.legend(loc='upper right')
-    # plt.savefig("pyplots/newestPlot.png")
-    # plt.show()
+    predictions = net.model.predict(testX)
+
+    fig = plt.figure("preds vs real high price", figsize=(10, 8))
+    fig.tight_layout()
+    plt1 = fig.add_subplot(211)
+    plt1.title.set_text("training and validation loss")
+    plt1.plot(np.arange(0, TRAIN_EPOCHS), results.history['loss'], color="green", label="real")
+    plt1.plot(np.arange(0, TRAIN_EPOCHS), results.history['val_loss'], color="red", label="preds")
+    plt1.legend(loc='upper right')
+    plt2 = fig.add_subplot(212)
+    plt2.plot(histTestIndex.index, testY, color="blue", label="real 2020")
+    plt2.plot(histTestIndex.index, predictions, color="red", label="preds 2020")
+    plt2.legend(loc='upper right')
+    plt.savefig("pyplots/newestPlot.png")
+    plt.show()
 
 if LOAD:
     oldModel = tf.keras.models.load_model("./models/")
