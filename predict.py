@@ -34,7 +34,7 @@ print('[INFO] Done importing packages.')
 
 #TODO: custom keras callback
 # Set to zero to use above saved model
-TRAIN_EPOCHS = 1
+TRAIN_EPOCHS = 50
 # # If you want to save the model at every epoch in a subfolder set to 'True'
 # SAVE_EPOCHS = False
 # # If you just want to save the final output in current folder, set to 'True
@@ -126,27 +126,27 @@ class Net():
         # Popular keyword choices: strides (default is strides=1), padding (="valid" means 0, ="same" means whatever gives same output width/height as input).  Not sure yet what to do if you want some other padding.
         # Activation function is built right into the Conv2D function as a keyword argument.
 
-        self.model.add(layers.Conv1D(8, 3, input_shape = input_shape, activation = 'relu'))
-        self.model.add(layers.BatchNormalization(trainable=False))
-
-        # For MaxPooling2D, default strides is equal to pool_size.  Batch and layers are assumed to match whatever comes in.
-        # self.model.add(layers.MaxPooling2D(pool_size = 2))
-
-        self.model.add(layers.Conv1D(16, 3, activation = 'relu'))
-        self.model.add(layers.BatchNormalization(trainable=False))
-
-        self.model.add(layers.Conv1D(32, 3, activation = 'relu'))
-        self.model.add(layers.BatchNormalization(trainable=False))
+        # self.model.add(layers.Conv1D(8, 3, input_shape = input_shape, activation = 'relu'))
+        # self.model.add(layers.BatchNormalization(trainable=False))
+        #
+        # # For MaxPooling2D, default strides is equal to pool_size.  Batch and layers are assumed to match whatever comes in.
+        # # self.model.add(layers.MaxPooling2D(pool_size = 2))
+        #
+        # self.model.add(layers.Conv1D(16, 3, activation = 'relu'))
+        # self.model.add(layers.BatchNormalization(trainable=False))
+        #
+        # self.model.add(layers.Conv1D(32, 3, activation = 'relu'))
+        # self.model.add(layers.BatchNormalization(trainable=False))
 
         # self.model.add(layers.Conv1D(64, 3, activation = 'relu'))
         # self.model.add(layers.BatchNormalization(trainable=False))
 
         # self.model.add(layers.MaxPooling1D(pool_size = 2))
 
-        self.model.add(layers.Flatten())
+        # self.model.add(layers.Flatten())
 
         # Now, we flatten to one dimension, so we go to just length 400.
-        self.model.add(layers.Dense(2400, activation = 'relu'))
+        self.model.add(layers.Dense(2400, activation = 'relu', input_shape = input_shape))
         self.model.add(layers.Dense(1200, activation = 'relu'))
         self.model.add(layers.Dense(600, activation = 'relu'))
         self.model.add(layers.Dense(300, activation = 'relu'))
@@ -200,8 +200,8 @@ for stock in INDEX_STOCKS:
     if trainXstock.shape[0] != 0:
         trainXstock = trainXstock.reshape((1,20,-1))
         testXstock = testXstock.reshape((1,20,-1))
-        trainXstock = np.swapaxes(trainXstock,0,1)
-        testXstock = np.swapaxes(testXstock,0,1)
+        # trainXstock = np.swapaxes(trainXstock,0,1)
+        # testXstock = np.swapaxes(testXstock,0,1)
         stockHistsTrainX.append(trainXstock)
         stockHistsTestX.append(testXstock)
 
@@ -215,7 +215,11 @@ stockHistsTestX = np.vstack(stockHistsTestX)
 trainX = np.transpose(stockHistsTrainX)
 testX = np.transpose(stockHistsTestX)
 
-print(f"total shape: {trainX.shape}")
+print(f"total shape before change: {trainX.shape}")
+trainX = np.swapaxes(trainX,1,2)
+testX = np.swapaxes(testX,1,2)
+print(f"total shape after change: {trainX.shape}")
+print(trainX)
 
 # stockHistsTrainX = numpy.delete(stockHistsTrainX, 0)
 # stockHistsTestX = numpy.delete(stockHistsTestX, 0)
@@ -256,6 +260,7 @@ if TRAIN:
     plt1.plot(np.arange(0, TRAIN_EPOCHS), results.history['val_loss'], color="red", label="preds")
     plt1.legend(loc='upper right')
     plt2 = fig.add_subplot(212)
+    histTestIndex = histTestIndex.iloc[20:]
     plt2.plot(histTestIndex.index, testY, color="blue", label="real 2020")
     plt2.plot(histTestIndex.index, predictions, color="red", label="preds 2020")
     plt2.legend(loc='upper right')
