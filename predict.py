@@ -31,19 +31,20 @@ from yfinance import *
 
 print('[INFO] Done importing packages.')
 
-
-#TODO: custom keras callback
-# Set to zero to use above saved model
 TRAIN_EPOCHS = 10
-# # If you want to save the model at every epoch in a subfolder set to 'True'
-# SAVE_EPOCHS = False
-# # If you just want to save the final output in current folder, set to 'True
-# SAVE_LAST = False
 BATCH_SIZE_TRAIN = 16
 BATCH_SIZE_TEST = 16
 
 TRAIN = True
-LOAD = False
+LOAD = True
+
+checkpointPath = "./checkpoints"
+customCallback = tf.keras.callbacks.ModelCheckpoint(
+    filepath=checkpointPath,
+    # save_weights_only=True,
+    monitor='val_mse',
+    mode='min',
+    save_best_only=True)
 
 def generator(batchSize, x, y):
     index = 0
@@ -252,19 +253,45 @@ if TRAIN:
     # print(net)
 
     results = net.model.fit(generator(BATCH_SIZE_TRAIN, trainX, trainY),
-                            validation_data=generator(BATCH_SIZE_TEST, testX, testY),
-                            shuffle = True,
-                            epochs = TRAIN_EPOCHS,
-                            batch_size = BATCH_SIZE_TRAIN,
-                            validation_batch_size = BATCH_SIZE_TEST,
-                            verbose = 1,
-                            steps_per_epoch=len(trainX)/BATCH_SIZE_TRAIN,
-                            validation_steps=len(testX)/BATCH_SIZE_TEST)
+        validation_data=generator(BATCH_SIZE_TEST, testX, testY),
+        shuffle = True,
+        epochs = TRAIN_EPOCHS,
+        batch_size = BATCH_SIZE_TRAIN,
+        validation_batch_size = BATCH_SIZE_TEST,
+        verbose = 1,
+        steps_per_epoch=len(trainX)/BATCH_SIZE_TRAIN,
+        validation_steps=len(testX)/BATCH_SIZE_TEST,
+        callbacks=[customCallback])
 
-    net.model.save("./models")
+    # net.model.load_weights(checkpointPath)
+    # net.model.save("./models")
+
+    # bestModel = tf.keras.models.load_model(checkpointPath)
+    #
+    # print(f"[INFO] Making Predictions.")
+    # predictions = bestModel.predict(testX)
+    # # print(predictions)
+    #
+    # fig = plt.figure("preds vs real high price", figsize=(10, 8))
+    # fig.tight_layout()
+    # plt1 = fig.add_subplot(211)
+    # plt1.title.set_text("training and validation loss")
+    # plt1.plot(np.arange(0, TRAIN_EPOCHS), results.history['loss'], color="green", label="real")
+    # plt1.plot(np.arange(0, TRAIN_EPOCHS), results.history['val_loss'], color="red", label="preds")
+    # plt1.legend(loc='upper right')
+    # plt2 = fig.add_subplot(212)
+    # histTestIndex = histTestIndex.iloc[20:]
+    # plt2.plot(histTestIndex.index, testY, color="blue", label="real 2020")
+    # plt2.plot(histTestIndex.index, predictions, color="red", label="preds 2020")
+    # plt2.legend(loc='upper right')
+    # plt.savefig("pyplots/newestPlot.png")
+    # plt.show()
+
+if LOAD:
+    bestModel = tf.keras.models.load_model(checkpointPath)
 
     print(f"[INFO] Making Predictions.")
-    predictions = net.model.predict(testX)
+    predictions = bestModel.predict(testX)
     # print(predictions)
 
     fig = plt.figure("preds vs real high price", figsize=(10, 8))
@@ -281,6 +308,3 @@ if TRAIN:
     plt2.legend(loc='upper right')
     plt.savefig("pyplots/newestPlot.png")
     plt.show()
-
-if LOAD:
-    oldModel = tf.keras.models.load_model("./models/")
