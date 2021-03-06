@@ -34,7 +34,7 @@ print('[INFO] Done importing packages.')
 
 #TODO: custom keras callback
 # Set to zero to use above saved model
-TRAIN_EPOCHS = 1
+TRAIN_EPOCHS = 10
 # # If you want to save the model at every epoch in a subfolder set to 'True'
 # SAVE_EPOCHS = False
 # # If you just want to save the final output in current folder, set to 'True
@@ -126,24 +126,24 @@ class Net():
         # Popular keyword choices: strides (default is strides=1), padding (="valid" means 0, ="same" means whatever gives same output width/height as input).  Not sure yet what to do if you want some other padding.
         # Activation function is built right into the Conv2D function as a keyword argument.
 
-        # self.model.add(layers.Conv1D(8, 3, input_shape = input_shape, activation = 'relu'))
-        # self.model.add(layers.BatchNormalization(trainable=False))
-        #
-        # # For MaxPooling2D, default strides is equal to pool_size.  Batch and layers are assumed to match whatever comes in.
-        # # self.model.add(layers.MaxPooling2D(pool_size = 2))
-        #
-        # self.model.add(layers.Conv1D(16, 3, activation = 'relu'))
-        # self.model.add(layers.BatchNormalization(trainable=False))
-        #
-        # self.model.add(layers.Conv1D(32, 3, activation = 'relu'))
-        # self.model.add(layers.BatchNormalization(trainable=False))
+        self.model.add(layers.Conv1D(8, 3, input_shape = input_shape, activation = 'relu'))
+        self.model.add(layers.BatchNormalization(trainable=False))
 
-        # self.model.add(layers.Conv1D(64, 3, activation = 'relu'))
-        # self.model.add(layers.BatchNormalization(trainable=False))
+        # For MaxPooling2D, default strides is equal to pool_size.  Batch and layers are assumed to match whatever comes in.
+        # self.model.add(layers.MaxPooling2D(pool_size = 2))
+
+        self.model.add(layers.Conv1D(16, 3, activation = 'relu'))
+        self.model.add(layers.BatchNormalization(trainable=False))
+
+        self.model.add(layers.Conv1D(32, 3, activation = 'relu'))
+        self.model.add(layers.BatchNormalization(trainable=False))
+
+        self.model.add(layers.Conv1D(64, 3, activation = 'relu'))
+        self.model.add(layers.BatchNormalization(trainable=False))
 
         # self.model.add(layers.MaxPooling1D(pool_size = 2))
 
-        # self.model.add(layers.Flatten())
+        self.model.add(layers.Flatten())
 
         # Now, we flatten to one dimension, so we go to just length 400.
         self.model.add(layers.Dense(2400, activation = 'relu', input_shape = input_shape))
@@ -154,7 +154,7 @@ class Net():
         self.model.add(layers.Dense(60, activation = 'relu'))
         self.model.add(layers.Dense(20, activation = 'relu'))
         self.model.add(layers.Dense(1))
-        # Now we're at length 10, which is our number of classes.
+
         #lr=0.001, momentum=0.9
         self.optimizer = optimizers.Adam(lr=0.001)
         #absolute for regression, squared for classification
@@ -178,7 +178,7 @@ print("[INFO] Loading Traning and Test Datasets.")
 INDEX_STOCKS = ["AAPL", "MSFT", "AMZN", "FB", "GOOGL", "GOOG", "TSLA", "BRK.B", "JPM", "JNJ"]
 INDEX = "SPY"
 
-trainStart = "2014-01-01"
+trainStart = "2018-01-01"
 trainEnd = "2019-12-31"
 
 testStart = "2020-01-01"
@@ -205,9 +205,9 @@ for stock in INDEX_STOCKS:
         stockHistsTrainX.append(trainXstock)
         stockHistsTestX.append(testXstock)
 
-
+print(f"[INFO] Rehaping Dataset.")
 print(f"stock shape after reshape: {stockHistsTrainX[0].shape}")
-print(stockHistsTrainX[0])
+# print(stockHistsTrainX[0])
 
 #must figure out how to stack these
 stockHistsTrainX = np.vstack(stockHistsTrainX)
@@ -215,11 +215,13 @@ stockHistsTestX = np.vstack(stockHistsTestX)
 trainX = np.transpose(stockHistsTrainX)
 testX = np.transpose(stockHistsTestX)
 
-print(f"total shape before change: {trainX.shape}")
+print(f"total shape before change train: {trainX.shape}")
+print(f"total shape before change test: {testX.shape}")
 trainX = np.swapaxes(trainX,1,2)
 testX = np.swapaxes(testX,1,2)
-print(f"total shape after change: {trainX.shape}")
-print(trainX)
+print(f"total shape after change train: {trainX.shape}")
+print(f"total shape after change test: {testX.shape}")
+# print(trainX)
 
 # stockHistsTrainX = numpy.delete(stockHistsTrainX, 0)
 # stockHistsTestX = numpy.delete(stockHistsTestX, 0)
@@ -239,7 +241,9 @@ histTrainIndex = getData(f"{INDEX}", trainStart, trainEnd)
 histTestIndex = getData(f"{INDEX}", testStart, testEnd)
 trainY = getY(histTrainIndex)
 testY = getY(histTestIndex)
-print(f"target shape: {trainY.shape}")
+print(f"target shape train: {trainY.shape}")
+print(f"target shape test: {testY.shape}")
+# print(trainY)
 # print(f"stock shape: {trainY.shape}")
 
 if TRAIN:
@@ -247,12 +251,21 @@ if TRAIN:
     net=Net((numStocks, 20))
     # print(net)
 
-    results = net.model.fit(generator(BATCH_SIZE_TRAIN, trainX, trainY), validation_data=generator(BATCH_SIZE_TEST, testX, testY), shuffle = True, epochs = TRAIN_EPOCHS, batch_size = BATCH_SIZE_TRAIN, validation_batch_size = BATCH_SIZE_TEST, verbose = 1, steps_per_epoch=len(trainX)/BATCH_SIZE_TRAIN, validation_steps=len(testX)/BATCH_SIZE_TEST)
+    results = net.model.fit(generator(BATCH_SIZE_TRAIN, trainX, trainY),
+                            validation_data=generator(BATCH_SIZE_TEST, testX, testY),
+                            shuffle = True,
+                            epochs = TRAIN_EPOCHS,
+                            batch_size = BATCH_SIZE_TRAIN,
+                            validation_batch_size = BATCH_SIZE_TEST,
+                            verbose = 1,
+                            steps_per_epoch=len(trainX)/BATCH_SIZE_TRAIN,
+                            validation_steps=len(testX)/BATCH_SIZE_TEST)
 
     net.model.save("./models")
 
+    print(f"[INFO] Making Predictions.")
     predictions = net.model.predict(testX)
-    print(predictions)
+    # print(predictions)
 
     fig = plt.figure("preds vs real high price", figsize=(10, 8))
     fig.tight_layout()
