@@ -31,18 +31,23 @@ from yfinance import *
 
 print('[INFO] Done importing packages.')
 
-TRAIN_EPOCHS = 10
+TRAIN_EPOCHS = 50
 BATCH_SIZE_TRAIN = 16
 BATCH_SIZE_TEST = 16
 
+LOAD_DATASET = True
 TRAIN = True
 LOAD = True
 
-checkpointPath = "./checkpoints"
+graphPath = "./info/pyplots/newestPlot.png"
+dataPath = "./info/datasets/allSpy.npy"
+
+#to only save the best model
+checkpointPath = "./info/checkpoints"
 customCallback = tf.keras.callbacks.ModelCheckpoint(
     filepath=checkpointPath,
     # save_weights_only=True,
-    monitor='val_mse',
+    monitor='val_loss',
     mode='min',
     save_best_only=True)
 
@@ -58,6 +63,14 @@ def generator(batchSize, x, y):
             else:
                 index=0
         yield np.array(batchX), np.array(batchY)
+
+def getSPYTickers():
+    table=pd.read_html('https://en.wikipedia.org/wiki/List_of_S%26P_500_companies')
+    df = table[0]
+    dfNP = df.to_numpy()
+    dfNP = np.transpose(dfNP)
+
+    return dfNP[0]
 
 def getData(stockName, startDate, endDate):
     stock = Ticker(stockName)
@@ -102,19 +115,6 @@ def getY(hist):
 
     return Y
 
-# def combineData(histIndex):
-#     X = []
-#     print(histIndex.shape)
-#     for i in range(histIndex.shape[1]):
-#         row = []
-#         for x in range(histIndex.shape[0]):
-#             row.append(histIndex[x][i])
-#         X.append(row)
-#
-#     X = np.array(X)
-#
-#     return X
-
 #TODO: play with nn architecture later
 class Net():
     def __init__(self, input_shape):
@@ -157,14 +157,15 @@ class Net():
         self.model.add(layers.Dense(1))
 
         #lr=0.001, momentum=0.9
-        self.optimizer = optimizers.Adam(lr=0.001)
+        self.optimizer = optimizers.Adam(lr=0.0001)
         #absolute for regression, squared for classification
 
         #Absolute for few outliers
         #squared to aggresively diminish outliers
         self.loss = losses.MeanSquaredError()
         #metrics=['accuracy']
-        self.model.compile(loss=self.loss, optimizer=self.optimizer, metrics=['mse'])
+        #metrics=['mse']
+        self.model.compile(loss=self.loss, optimizer=self.optimizer)
 
     def __str__(self):
         self.model.summary(print_fn = self.print_summary)
@@ -173,79 +174,99 @@ class Net():
     def print_summary(self, summaryStr):
         print(summaryStr)
 
-print("[INFO] Loading Traning and Test Datasets.")
+if LOAD_DATASET:
+    print("[INFO] Loading Traning and Test Datasets.")
 
-#PLAN: make each row a set of stocks in an index
-INDEX_STOCKS = ["AAPL", "MSFT", "AMZN", "FB", "GOOGL", "GOOG", "TSLA", "BRK.B", "JPM", "JNJ"]
-INDEX = "SPY"
+    #PLAN: make each row a set of stocks in an index
+    INDEX_STOCKS = getSPYTickers()
+    # ["AAPL", "MSFT", "AMZN", "FB", "GOOGL", "GOOG", "TSLA", "BRK.B", "JPM", "JNJ"]
+    INDEX = "SPY"
 
-trainStart = "2018-01-01"
-trainEnd = "2019-12-31"
+    trainStart = "2020-01-01"
+    trainEnd = "2020-06-30"
 
-testStart = "2020-01-01"
-testEnd = "2020-12-30"
+    testStart = "2020-07-01"
+    testEnd = "2020-12-31"
 
-#get all the stock data
-stockHistsTrainX = []
-stockHistsTestX = []
-for stock in INDEX_STOCKS:
-    print(f"[INFO] Loading Dataset For {stock}.")
-    train = getData(f"{stock}", trainStart, trainEnd)
-    test = getData(f"{stock}", testStart, testEnd)
-    trainXstock = np.transpose(getX(train))
-    testXstock = np.transpose(getX(test))
-    # trainXstock = getX(train).reshape()
-    # testXstock = getX(test).reshape()
-    print(f"stock shape: {trainXstock.shape}")
+    #get all the stock data
+    expectedTrain = 104
+    expectedTest = 107
 
-    if trainXstock.shape[0] != 0:
-        trainXstock = trainXstock.reshape((1,20,-1))
-        testXstock = testXstock.reshape((1,20,-1))
-        # trainXstock = np.swapaxes(trainXstock,0,1)
-        # testXstock = np.swapaxes(testXstock,0,1)
-        stockHistsTrainX.append(trainXstock)
-        stockHistsTestX.append(testXstock)
+    stockHistsTrainX = []
+    stockHistsTestX = []
+    for stock in INDEX_STOCKS:
+        print(f"[INFO] Loading Dataset For {stock}.")
+        train = getData(f"{stock}", trainStart, trainEnd)
+        test = getData(f"{stock}", testStart, testEnd)
+        trainXstock = np.transpose(getX(train))
+        testXstock = np.transpose(getX(test))
+        # trainXstock = getX(train).reshape()
+        # testXstock = getX(test).reshape()
+        print(f"train stock shape: {trainXstock.shape}")
+        print(f"test stock shape: {testXstock.shape}")
 
-print(f"[INFO] Rehaping Dataset.")
-print(f"stock shape after reshape: {stockHistsTrainX[0].shape}")
-# print(stockHistsTrainX[0])
+        if trainXstock.shape[0] != 0:
+            if trainXstock.shape[1] == expectedTrain and testXstock.shape[1] == expectedTest:
+                trainXstock = trainXstock.reshape((1,20,-1))
+                testXstock = testXstock.reshape((1,20,-1))
+                # trainXstock = np.swapaxes(trainXstock,0,1)
+                # testXstock = np.swapaxes(testXstock,0,1)
+                stockHistsTrainX.append(trainXstock)
+                stockHistsTestX.append(testXstock)
 
-#must figure out how to stack these
-stockHistsTrainX = np.vstack(stockHistsTrainX)
-stockHistsTestX = np.vstack(stockHistsTestX)
-trainX = np.transpose(stockHistsTrainX)
-testX = np.transpose(stockHistsTestX)
+    print(f"[INFO] Rehaping Dataset.")
+    print(f"train stock shape after reshape: {stockHistsTrainX[0].shape}")
+    print(f"test stock shape after reshape: {stockHistsTestX[0].shape}")
+    # print(stockHistsTrainX[0])
 
-print(f"total shape before change train: {trainX.shape}")
-print(f"total shape before change test: {testX.shape}")
-trainX = np.swapaxes(trainX,1,2)
-testX = np.swapaxes(testX,1,2)
-print(f"total shape after change train: {trainX.shape}")
-print(f"total shape after change test: {testX.shape}")
-# print(trainX)
+    #must figure out how to stack these
+    stockHistsTrainX = np.vstack(stockHistsTrainX)
+    stockHistsTestX = np.vstack(stockHistsTestX)
+    trainX = np.transpose(stockHistsTrainX)
+    testX = np.transpose(stockHistsTestX)
 
-# stockHistsTrainX = numpy.delete(stockHistsTrainX, 0)
-# stockHistsTestX = numpy.delete(stockHistsTestX, 0)
+    print(f"total shape before change train: {trainX.shape}")
+    print(f"total shape before change test: {testX.shape}")
+    trainX = np.swapaxes(trainX,1,2)
+    testX = np.swapaxes(testX,1,2)
+    print(f"total shape after change train: {trainX.shape}")
+    print(f"total shape after change test: {testX.shape}")
+    # print(trainX)
 
-# stockHistsTrainX = np.array(stockHistsTrainX)
-# stockHistsTestX = np.array(stockHistsTestX)
+    # stockHistsTrainX = numpy.delete(stockHistsTrainX, 0)
+    # stockHistsTestX = numpy.delete(stockHistsTestX, 0)
 
-#reorganize x data of stocks
-# print("[INFO] Combining X Data.")
-# trainX = combineData(stockHistsTrainX)
-# testX = combineData(stockHistsTestX)
-# print(trainX.shape)
+    # stockHistsTrainX = np.array(stockHistsTrainX)
+    # stockHistsTestX = np.array(stockHistsTestX)
 
-#index target prices
-print("[INFO] Loading Index Data.")
-histTrainIndex = getData(f"{INDEX}", trainStart, trainEnd)
-histTestIndex = getData(f"{INDEX}", testStart, testEnd)
-trainY = getY(histTrainIndex)
-testY = getY(histTestIndex)
-print(f"target shape train: {trainY.shape}")
-print(f"target shape test: {testY.shape}")
-# print(trainY)
-# print(f"stock shape: {trainY.shape}")
+    #reorganize x data of stocks
+    # print("[INFO] Combining X Data.")
+    # trainX = combineData(stockHistsTrainX)
+    # testX = combineData(stockHistsTestX)
+    # print(trainX.shape)
+
+    #index target prices
+    print("[INFO] Loading Index Data.")
+    histTrainIndex = getData(f"{INDEX}", trainStart, trainEnd)
+    histTestIndex = getData(f"{INDEX}", testStart, testEnd)
+    trainY = getY(histTrainIndex)
+    testY = getY(histTestIndex)
+    print(f"target shape train: {trainY.shape}")
+    print(f"target shape test: {testY.shape}")
+    # print(trainY)
+    # print(f"stock shape: {trainY.shape}")
+
+    with open(f'{dataPath}', 'wb') as f:
+        np.save(f, trainX)
+        np.save(f, trainY)
+        np.save(f, testX)
+        np.save(f, testY)
+else:
+    with open(f'{dataPath}', 'rb') as f:
+        trainX = np.load(f)
+        trainY = np.load(f)
+        testX = np.load(f)
+        testY =  np.load(f)
 
 if TRAIN:
     numStocks = len(stockHistsTrainX)
@@ -303,8 +324,8 @@ if LOAD:
     plt1.legend(loc='upper right')
     plt2 = fig.add_subplot(212)
     histTestIndex = histTestIndex.iloc[20:]
-    plt2.plot(histTestIndex.index, testY, color="blue", label="real 2020")
-    plt2.plot(histTestIndex.index, predictions, color="red", label="preds 2020")
+    plt2.plot(histTestIndex.index, testY, color="blue", label="real")
+    plt2.plot(histTestIndex.index, predictions, color="red", label="preds")
     plt2.legend(loc='upper right')
-    plt.savefig("pyplots/newestPlot.png")
+    plt.savefig(graphPath)
     plt.show()
