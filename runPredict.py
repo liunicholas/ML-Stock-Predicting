@@ -1,10 +1,10 @@
 import os
 
-fname = "terminalOutput"
+terminalOutputPath = "./info/terminal/terminalOutput.txt"
 
 def main():
     #overwrites files
-    os.system(f"python predict.py | tee ./info/terminal/{fname}.txt")
+    os.system(f"python predict.py | tee {terminalOutputPath}")
     # execfile("python myTF.py |& tee terminalOutput.txt")
 
 main()

@@ -1,3 +1,4 @@
+print('[INFO] Importing packages.')
 # Python 3.8.6
 import time
 
@@ -17,11 +18,6 @@ import numpy as np
 import pandas as pd
 from yfinance import *
 
-# import sys
-#
-# terminalOutput = open("terminalOutput.txt", "w")
-# sys.stdout = terminalOutput
-
 #TODO: make gpu work??
 # devices = tf.config.list_physical_devices('GPU')
 # if len(devices) > 0:
@@ -31,19 +27,32 @@ from yfinance import *
 
 print('[INFO] Done importing packages.')
 
+INDEX = "SPY"
+indexSource = "https://en.wikipedia.org/wiki/List_of_S%26P_500_companies"
+
+trainStart = "2020-01-01"
+trainEnd = "2020-06-30"
+
+testStart = "2020-07-01"
+testEnd = "2020-12-31"
+
+expectedTrain = 104
+expectedTest = 107
+
 TRAIN_EPOCHS = 50
 BATCH_SIZE_TRAIN = 16
 BATCH_SIZE_TEST = 16
 
-LOAD_DATASET = True
+LOAD_DATASET = False
 TRAIN = True
-LOAD = True
+TEST = True
+
+daysBefore = 20
 
 graphPath = "./info/pyplots/newestPlot.png"
 dataPath = "./info/datasets/allSpy.npy"
-
-#to only save the best model
 checkpointPath = "./info/checkpoints"
+
 customCallback = tf.keras.callbacks.ModelCheckpoint(
     filepath=checkpointPath,
     # save_weights_only=True,
@@ -64,8 +73,8 @@ def generator(batchSize, x, y):
                 index=0
         yield np.array(batchX), np.array(batchY)
 
-def getSPYTickers():
-    table=pd.read_html('https://en.wikipedia.org/wiki/List_of_S%26P_500_companies')
+def getTickers():
+    table=pd.read_html(f'{indexSource}')
     df = table[0]
     dfNP = df.to_numpy()
     dfNP = np.transpose(dfNP)
@@ -88,9 +97,9 @@ def getX(hist):
     # close = histNP[3]
 
     X = []
-    #19 previous days and predict 20th day
-    for x in range(len(high)-20):
-        X.append(high[x:x+20])
+    #uses daysBefore previous days
+    for x in range(len(high)-daysBefore):
+        X.append(high[x:x+daysBefore])
 
     X = np.array(X)
 
@@ -106,9 +115,9 @@ def getY(hist):
     # close = histNP[3]
 
     Y = []
-    #19 previous days and predict 20th day
-    for y in range(len(high)-20):
-        Y.append(high[y+20])
+    #target is daysBefore+1
+    for y in range(len(high)-daysBefore):
+        Y.append(high[y+daysBefore])
 
     Y = np.array(Y)
     Y = Y.flatten()
@@ -127,19 +136,19 @@ class Net():
         # Popular keyword choices: strides (default is strides=1), padding (="valid" means 0, ="same" means whatever gives same output width/height as input).  Not sure yet what to do if you want some other padding.
         # Activation function is built right into the Conv2D function as a keyword argument.
 
-        self.model.add(layers.Conv1D(8, 3, input_shape = input_shape, activation = 'relu'))
+        self.model.add(layers.Conv1D(16, 3, input_shape = input_shape, activation = 'relu'))
         self.model.add(layers.BatchNormalization(trainable=False))
 
         # For MaxPooling2D, default strides is equal to pool_size.  Batch and layers are assumed to match whatever comes in.
         # self.model.add(layers.MaxPooling2D(pool_size = 2))
 
-        self.model.add(layers.Conv1D(16, 3, activation = 'relu'))
-        self.model.add(layers.BatchNormalization(trainable=False))
-
-        self.model.add(layers.Conv1D(32, 3, activation = 'relu'))
-        self.model.add(layers.BatchNormalization(trainable=False))
-
         self.model.add(layers.Conv1D(64, 3, activation = 'relu'))
+        self.model.add(layers.BatchNormalization(trainable=False))
+
+        self.model.add(layers.Conv1D(128, 3, activation = 'relu'))
+        self.model.add(layers.BatchNormalization(trainable=False))
+
+        self.model.add(layers.Conv1D(256, 3, activation = 'relu'))
         self.model.add(layers.BatchNormalization(trainable=False))
 
         # self.model.add(layers.MaxPooling1D(pool_size = 2))
@@ -178,19 +187,8 @@ if LOAD_DATASET:
     print("[INFO] Loading Traning and Test Datasets.")
 
     #PLAN: make each row a set of stocks in an index
-    INDEX_STOCKS = getSPYTickers()
+    INDEX_STOCKS = getTickers()
     # ["AAPL", "MSFT", "AMZN", "FB", "GOOGL", "GOOG", "TSLA", "BRK.B", "JPM", "JNJ"]
-    INDEX = "SPY"
-
-    trainStart = "2020-01-01"
-    trainEnd = "2020-06-30"
-
-    testStart = "2020-07-01"
-    testEnd = "2020-12-31"
-
-    #get all the stock data
-    expectedTrain = 104
-    expectedTest = 107
 
     stockHistsTrainX = []
     stockHistsTestX = []
@@ -269,8 +267,9 @@ else:
         testY =  np.load(f)
 
 if TRAIN:
-    numStocks = len(stockHistsTrainX)
-    net=Net((numStocks, 20))
+    assert trainX.shape[1] == testX.shape[1]
+    numStocks = trainX.shape[1]
+    net=Net((numStocks, daysBefore))
     # print(net)
 
     results = net.model.fit(generator(BATCH_SIZE_TRAIN, trainX, trainY),
@@ -308,7 +307,8 @@ if TRAIN:
     # plt.savefig("pyplots/newestPlot.png")
     # plt.show()
 
-if LOAD:
+if TEST:
+    histTestIndex = getData(f"{INDEX}", testStart, testEnd)
     bestModel = tf.keras.models.load_model(checkpointPath)
 
     print(f"[INFO] Making Predictions.")
@@ -323,7 +323,7 @@ if LOAD:
     plt1.plot(np.arange(0, TRAIN_EPOCHS), results.history['val_loss'], color="red", label="preds")
     plt1.legend(loc='upper right')
     plt2 = fig.add_subplot(212)
-    histTestIndex = histTestIndex.iloc[20:]
+    histTestIndex = histTestIndex.iloc[daysBefore:]
     plt2.plot(histTestIndex.index, testY, color="blue", label="real")
     plt2.plot(histTestIndex.index, predictions, color="red", label="preds")
     plt2.legend(loc='upper right')
