@@ -36,18 +36,19 @@ trainEnd = "2020-06-30"
 testStart = "2020-07-01"
 testEnd = "2020-12-31"
 
-expectedTrain = 104
-expectedTest = 107
+expectedTrain = 119
+expectedTest = 122
 
 TRAIN_EPOCHS = 50
 BATCH_SIZE_TRAIN = 16
 BATCH_SIZE_TEST = 16
 
-LOAD_DATASET = False
+LOAD_DATASET = True
+    
 TRAIN = True
 TEST = True
 
-daysBefore = 20
+daysBefore = 5
 
 graphPath = "./info/pyplots/newestPlot.png"
 dataPath = "./info/datasets/allSpy.npy"
@@ -205,8 +206,8 @@ if LOAD_DATASET:
 
         if trainXstock.shape[0] != 0:
             if trainXstock.shape[1] == expectedTrain and testXstock.shape[1] == expectedTest:
-                trainXstock = trainXstock.reshape((1,20,-1))
-                testXstock = testXstock.reshape((1,20,-1))
+                trainXstock = trainXstock.reshape((1,daysBefore,-1))
+                testXstock = testXstock.reshape((1,daysBefore,-1))
                 # trainXstock = np.swapaxes(trainXstock,0,1)
                 # testXstock = np.swapaxes(testXstock,0,1)
                 stockHistsTrainX.append(trainXstock)
