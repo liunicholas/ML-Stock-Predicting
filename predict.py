@@ -1,10 +1,13 @@
 print('[INFO] Importing packages.')
-# Python 3.8.6
-import time
-
-# tensorflow 2.4.0
-# matplotlib 3.3.3
-# numpy 1.19.4
+# Python                 3.8.1
+# Keras-Preprocessing    1.1.2
+# matplotlib             3.3.3
+# multitasking           0.0.9
+# numpy                  1.18.5
+# pandas                 1.2.2
+# scikit-learn           0.24.1
+# scipy                  1.6.0
+# tensorflow             2.3.1
 import tensorflow as tf
 import tensorflow.keras.models as models
 import tensorflow.keras.layers as layers
@@ -25,10 +28,17 @@ from yfinance import *
 # else:
 #     print('[INFO] GPU not detected.')
 
+#STUFF TO DO
+#normalization
+#predict future
+#gpu 
+
 print('[INFO] Done importing packages.')
 
 INDEX = "SPY"
 indexSource = "https://en.wikipedia.org/wiki/List_of_S%26P_500_companies"
+ALL_STOCKS = False
+shortList  =["AAPL", "MSFT", "AMZN", "FB", "GOOGL", "GOOG", "TSLA", "BRK.B", "JPM", "JNJ"]
 
 trainStart = "2020-01-01"
 trainEnd = "2020-06-30"
@@ -36,19 +46,23 @@ trainEnd = "2020-06-30"
 testStart = "2020-07-01"
 testEnd = "2020-12-31"
 
-expectedTrain = 119
-expectedTest = 122
+expectedTrain = 100
+expectedTest = 103
 
-TRAIN_EPOCHS = 50
+TRAIN_EPOCHS = 10
 BATCH_SIZE_TRAIN = 16
 BATCH_SIZE_TEST = 16
 
-LOAD_DATASET = True
-    
-TRAIN = True
-TEST = True
+LOAD_DATASET = False
 
-daysBefore = 5
+TRAIN = False
+TEST = False
+
+PREDICT = False
+predictDate = "2020-03-12"
+
+daysBefore = 20                 #total days in period for prediction
+daysAhead = 5                   #1 for day immediately after
 
 graphPath = "./info/pyplots/newestPlot.png"
 dataPath = "./info/datasets/allSpy.npy"
@@ -99,7 +113,7 @@ def getX(hist):
 
     X = []
     #uses daysBefore previous days
-    for x in range(len(high)-daysBefore):
+    for x in range(len(high)-daysBefore-daysAhead+1):
         X.append(high[x:x+daysBefore])
 
     X = np.array(X)
@@ -117,8 +131,8 @@ def getY(hist):
 
     Y = []
     #target is daysBefore+1
-    for y in range(len(high)-daysBefore):
-        Y.append(high[y+daysBefore])
+    for y in range(len(high)-daysBefore-daysAhead+1):
+        Y.append(high[y+daysBefore+daysAhead-1])
 
     Y = np.array(Y)
     Y = Y.flatten()
@@ -188,8 +202,10 @@ if LOAD_DATASET:
     print("[INFO] Loading Traning and Test Datasets.")
 
     #PLAN: make each row a set of stocks in an index
-    INDEX_STOCKS = getTickers()
-    # ["AAPL", "MSFT", "AMZN", "FB", "GOOGL", "GOOG", "TSLA", "BRK.B", "JPM", "JNJ"]
+    if ALL_STOCKS:
+        INDEX_STOCKS = getTickers()
+    else:
+        INDEX_STOCKS = shortList
 
     stockHistsTrainX = []
     stockHistsTestX = []
@@ -287,46 +303,43 @@ if TRAIN:
     # net.model.load_weights(checkpointPath)
     # net.model.save("./models")
 
-    # bestModel = tf.keras.models.load_model(checkpointPath)
-    #
-    # print(f"[INFO] Making Predictions.")
-    # predictions = bestModel.predict(testX)
-    # # print(predictions)
-    #
-    # fig = plt.figure("preds vs real high price", figsize=(10, 8))
-    # fig.tight_layout()
-    # plt1 = fig.add_subplot(211)
-    # plt1.title.set_text("training and validation loss")
-    # plt1.plot(np.arange(0, TRAIN_EPOCHS), results.history['loss'], color="green", label="real")
-    # plt1.plot(np.arange(0, TRAIN_EPOCHS), results.history['val_loss'], color="red", label="preds")
-    # plt1.legend(loc='upper right')
-    # plt2 = fig.add_subplot(212)
-    # histTestIndex = histTestIndex.iloc[20:]
-    # plt2.plot(histTestIndex.index, testY, color="blue", label="real 2020")
-    # plt2.plot(histTestIndex.index, predictions, color="red", label="preds 2020")
-    # plt2.legend(loc='upper right')
-    # plt.savefig("pyplots/newestPlot.png")
-    # plt.show()
-
 if TEST:
     histTestIndex = getData(f"{INDEX}", testStart, testEnd)
+    histTestIndex = histTestIndex.iloc[daysBefore+daysAhead-1:]
+
     bestModel = tf.keras.models.load_model(checkpointPath)
 
     print(f"[INFO] Making Predictions.")
     predictions = bestModel.predict(testX)
-    # print(predictions)
 
-    fig = plt.figure("preds vs real high price", figsize=(10, 8))
-    fig.tight_layout()
-    plt1 = fig.add_subplot(211)
-    plt1.title.set_text("training and validation loss")
-    plt1.plot(np.arange(0, TRAIN_EPOCHS), results.history['loss'], color="green", label="real")
-    plt1.plot(np.arange(0, TRAIN_EPOCHS), results.history['val_loss'], color="red", label="preds")
-    plt1.legend(loc='upper right')
-    plt2 = fig.add_subplot(212)
-    histTestIndex = histTestIndex.iloc[daysBefore:]
-    plt2.plot(histTestIndex.index, testY, color="blue", label="real")
-    plt2.plot(histTestIndex.index, predictions, color="red", label="preds")
-    plt2.legend(loc='upper right')
-    plt.savefig(graphPath)
-    plt.show()
+    counter = 0
+    for date in histTestIndex.index:
+        print(f"{date}: {predictions[counter]}")
+        counter+=1
+
+    if TRAIN:
+        fig = plt.figure("preds vs real high price", figsize=(10, 8))
+        fig.tight_layout()
+        plt1 = fig.add_subplot(211)
+        plt1.title.set_text("training and validation loss")
+        plt1.plot(np.arange(0, TRAIN_EPOCHS), results.history['loss'], color="green", label="real")
+        plt1.plot(np.arange(0, TRAIN_EPOCHS), results.history['val_loss'], color="red", label="preds")
+        plt1.legend(loc='upper right')
+        plt2 = fig.add_subplot(212)
+        plt2.plot(histTestIndex.index, testY, color="blue", label="real")
+        plt2.plot(histTestIndex.index, predictions, color="red", label="preds")
+        plt2.legend(loc='upper right')
+        plt.savefig(graphPath)
+        plt.show()
+    else:
+        fig = plt.figure("preds vs real high price", figsize=(10, 4))
+        fig.tight_layout()
+        plt2 = fig.add_subplot(111)
+        plt2.plot(histTestIndex.index, testY, color="blue", label="real")
+        plt2.plot(histTestIndex.index, predictions, color="red", label="preds")
+        plt2.legend(loc='upper right')
+        plt.savefig(graphPath)
+        plt.show()
+
+if PREDICT:
+    print("work on this later")
