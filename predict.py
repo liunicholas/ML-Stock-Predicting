@@ -47,14 +47,14 @@ indexSource = "https://en.wikipedia.org/wiki/List_of_S%26P_500_companies"
 #to not have to get all 500+ stocks
 shortList = ["AAPL", "MSFT", "AMZN", "FB", "GOOGL", "GOOG", "TSLA", "BRK.B", "JPM", "JNJ"]
 
-trainStart = "2020-03-12"
-trainEnd = "2020-08-01"
+trainStart = "2019-03-12"
+trainEnd = "2020-3-11"
 
-testStart = "2020-08-01"
-testEnd = "2021-3-5"
+testStart = "2020-03-11"
+testEnd = "2021-3-11"
 
-expectedTrain = 79
-expectedTest = 128
+expectedTrain = 232
+expectedTest = 232
 
 TRAIN_EPOCHS = 10
 BATCH_SIZE_TRAIN = 16
@@ -67,8 +67,8 @@ TRAIN = False
 TEST = False
 
 PREDICT = True
-predictDate = "2021-03-12"
-
+NEW_MODEL = False
+predictDate = "2021-03-15"
 daysBefore = 20                 #total days in period for prediction
 daysAhead = 1                   #1 for day immediately after
 
@@ -76,6 +76,8 @@ graphPath = "./info/pyplots/newestPlot.png"
 dataPath = "./info/datasets/allSpy.npy"
 checkpointPath = "./info/checkpoints"
 stocksIncludedPath = "./info/datasets/stocksIncluded.txt"
+previousSavePath = "./info/savedModels/20_1_480/"
+previousSavestocksIncludedPath = "./info/savedModels/20_1_480/stocksIncluded.txt"
 
 customCallback = tf.keras.callbacks.ModelCheckpoint(
     filepath=checkpointPath,
@@ -255,16 +257,36 @@ def main():
             print(f"test stock shape: {testXstock.shape}")
 
             if trainXstock.shape[0] != 0:
-                if trainXstock.shape[1] == expectedTrain and testXstock.shape[1] == expectedTest:
-                    f.write(f"{stock} ")
-                    trainXstock = trainXstock.reshape((1,daysBefore,-1))
-                    testXstock = testXstock.reshape((1,daysBefore,-1))
-                    # trainXstock = np.swapaxes(trainXstock,0,1)
-                    # testXstock = np.swapaxes(testXstock,0,1)
-                    stockHistsTrainX.append(trainXstock)
-                    stockHistsTestX.append(testXstock)
-                else:
-                    print("error: did not set expectedTrain and expectedTest")
+                if trainXstock.shape[1] != expectedTrain or testXstock.shape[1] != expectedTest:
+                    print("possible error: did not set expectedTrain and expectedTest")
+                    if testXstock.shape[0] != expectedTest:
+                        while testXstock.shape[0] < expectedTest:
+                            print(testXstock)
+                            testXstock = np.vstack([testXstock[0],testXstock])
+                            print(testXstock)
+                        while testXstock.shape[0] > dexpectedTest:
+                            print(testXstock)
+                            testXstock = np.delete(testXstock,expectedTest)
+                            print(testXstock)
+
+                    if trainXstock.shape[0] != expectedTrain:
+                        while trainXstock.shape[0] < expectedTrain:
+                            print(trainXstock)
+                            testXstock = np.vstack([trainXstock[0],trainXstock])
+                            print(testXstock)
+                        while trainXstock.shape[0] > expectedTrain:
+                            print(trainXstock)
+                            trainXstock = np.delete(trainXstock,expectedTrain)
+                            print(trainXstock)
+
+
+                f.write(f" {stock} ")
+                trainXstock = trainXstock.reshape((1,daysBefore,-1))
+                testXstock = testXstock.reshape((1,daysBefore,-1))
+                # trainXstock = np.swapaxes(trainXstock,0,1)
+                # testXstock = np.swapaxes(testXstock,0,1)
+                stockHistsTrainX.append(trainXstock)
+                stockHistsTestX.append(testXstock)
 
         f.close()
 
@@ -323,6 +345,12 @@ def main():
             callbacks=[customCallback])
 
     if TEST:
+        if not LOAD_DATASET and not TRAIN:
+            with open(f'{dataPath}', 'rb') as f:
+                trainX = np.load(f)
+                trainY = np.load(f)
+                testX = np.load(f)
+                testY =  np.load(f)
         histTestIndex = getData(f"{INDEX}", testStart, testEnd)
         histTestIndex = histTestIndex.iloc[daysBefore+daysAhead-1:]
 
@@ -366,9 +394,14 @@ def main():
         predictEnd = getDateInPast(predictDate, daysAhead-1)
         print(f"predict end date: {predictEnd}")
 
-        f = open(f"{stocksIncludedPath}", 'r')
-        stocksIncluded = f.read()
-        f.close()
+        if NEW_MODEL:
+            f = open(f"{stocksIncludedPath}", 'r')
+            stocksIncluded = f.read()
+            f.close()
+        else:
+            f = open(f"{previousSavestocksIncludedPath}", 'r')
+            stocksIncluded = f.read()
+            f.close()
 
         print("[INFO] Loading Prediction Datasets.")
 
@@ -379,16 +412,20 @@ def main():
 
         stockHistsTestX = []
         for stock in INDEX_STOCKS:
-            if stock in stocksIncluded:
+            if " " + stock + " " in stocksIncluded:
                 print(f"[INFO] Loading Testset For {stock}.")
                 test = getData(f"{stock}", predictStart, predictEnd)
                 testXstock = np.transpose(getXpredict(test))
                 print(f"test stock shape: {testXstock.shape}")
                 if testXstock.shape[0] != daysBefore:
                     while testXstock.shape[0] < daysBefore:
-                        testXstock = np.vstack([testXstock[0][0],testXstock])
+                        print(testXstock)
+                        testXstock = np.vstack([testXstock[0],testXstock])
+                        print(testXstock)
                     while testXstock.shape[0] > daysBefore:
-                        testXstock = np.delete(testXstock,0)
+                        print(testXstock)
+                        testXstock = np.delete(testXstock,daysBefore)
+                        print(testXstock)
                 testXstock = testXstock.reshape((1,daysBefore,-1))
                 stockHistsTestX.append(testXstock)
 
@@ -402,11 +439,14 @@ def main():
         testX = np.swapaxes(testX,1,2)
         print(f"total shape after change test: {testX.shape}")
 
-        bestModel = tf.keras.models.load_model(checkpointPath)
+        if NEW_MODEL:
+            bestModel = tf.keras.models.load_model(checkpointPath)
+        else:
+            bestModel = tf.keras.models.load_model(previousSavePath)
 
         print(f"[INFO] Making Prediction.")
         prediction = bestModel.predict(testX)
 
-        print(f"\nprediction for {predictDate}: {round(prediction[0][0],2)}\n")
+        print(f"\nprediction for {predictDate}: {prediction[0][0]}\n")
 
 main()

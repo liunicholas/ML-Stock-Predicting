@@ -7,3 +7,7 @@ info/models/variables/variables.data-00000-of-00001
 info/models/variables/variables.index
 info/models/variables/variables_temp/part-00000-of-00001.data-00000-of-00001
 .DS_Store
+*.data-00000-of-00001
+*.index
+*.pb
+info/datasets/stocksIncluded.txt
