@@ -21,6 +21,7 @@ import numpy as np
 import pandas as pd
 from yfinance import *
 from datetime import *
+import os
 
 #TODO: make gpu work??
 # devices = tf.config.list_physical_devices('GPU')
@@ -47,11 +48,15 @@ indexSource = "https://en.wikipedia.org/wiki/List_of_S%26P_500_companies"
 #to not have to get all 500+ stocks
 shortList = ["AAPL", "MSFT", "AMZN", "FB", "GOOGL", "GOOG", "TSLA", "BRK.B", "JPM", "JNJ"]
 
+#variables for training
 trainStart = "2019-03-12"
 trainEnd = "2020-3-11"
 
 testStart = "2020-03-11"
 testEnd = "2021-3-11"
+
+daysBefore = 20                 #total days in period for prediction
+daysAhead = 1                   #1 for day immediately after
 
 expectedTrain = 232
 expectedTest = 232
@@ -61,23 +66,29 @@ BATCH_SIZE_TRAIN = 16
 BATCH_SIZE_TEST = 16
 
 USE_ALL_STOCKS = True
-LOAD_DATASET = False
+LOAD_DATASET = True
 
-TRAIN = False
-TEST = False
+TRAIN = True
+TEST = True
 
 PREDICT = True
+if PREDICT:
+    LOAD_DATASET = False
+    TRAIN = False
+    TEST = False
+
+#variables for predicting
 NEW_MODEL = False
 predictDate = "2021-03-15"
-daysBefore = 20                 #total days in period for prediction
-daysAhead = 1                   #1 for day immediately after
+savedModelName = "20_1_1"
 
 graphPath = "./info/pyplots/newestPlot.png"
 dataPath = "./info/datasets/allSpy.npy"
 checkpointPath = "./info/checkpoints"
 stocksIncludedPath = "./info/datasets/stocksIncluded.txt"
-previousSavePath = "./info/savedModels/20_1_480/"
-previousSavestocksIncludedPath = "./info/savedModels/20_1_480/stocksIncluded.txt"
+savedModelsPath = "./savedModels/"
+previousSavePath = f"{savedModelsPath}{savedModelName}/"
+previousSavestocksIncludedPath = f"{savedModelsPath}{savedModelName}/stocksIncluded.txt"
 
 customCallback = tf.keras.callbacks.ModelCheckpoint(
     filepath=checkpointPath,
@@ -388,10 +399,58 @@ def main():
             plt.savefig(graphPath)
             plt.show()
 
+        while True:
+            keep = input("save this model to folder? (y/n)")
+            if keep != "y" and keep != "n":
+                print("error")
+                continue
+            break
+
+        if keep == "y":
+            while True:
+                version = input("version name: ")
+                while True:
+                    confirm = input("confirm? (y/n)")
+                    if confirm != "y" and keep != "n":
+                        print("error")
+                        continue
+                    break
+                if confirm == "y":
+                    break
+
+            #create new saved model folder
+            newFolderPath = f"{savedModelsPath}{daysBefore}_{daysAhead}_{version}"
+            os.mkdir(f"{newFolderPath}")
+            print("[INFO] Saving Pyplot.")
+            fig = plt.figure("preds vs real high price", figsize=(10, 4))
+            fig.tight_layout()
+            plt2 = fig.add_subplot(111)
+            plt2.plot(histTestIndex.index, testY, color="blue", label="real")
+            plt2.plot(histTestIndex.index, predictions, color="red", label="preds")
+            plt2.legend(loc='upper left')
+            plt.savefig(f"{newFolderPath}/{daysBefore}_{daysAhead}_{version}.png")
+            print("[INFO] Saving Included Stocks Text File.")
+            f = open(f"{stocksIncludedPath}", 'r')
+            stocksIncluded = f.read()
+            f.close()
+            f = open(f"{newFolderPath}/stocksIncluded.txt", 'w')
+            f.write(stocksIncluded)
+            f.close()
+            print("[INFO] Saving Model.")
+            bestModel.save(f"{newFolderPath}")
+
     if PREDICT:
-        predictStart = getDateInPast(predictDate,daysAhead+daysBefore-1)
+        index1 = savedModelName.find("_")
+        daysBefore2 = int(savedModelName[:index1])
+        print(daysBefore2)
+        savedModelName2 = savedModelName[index1+1:]
+        index2 = savedModelName2.find("_")
+        daysAhead2 = int(savedModelName2[:index2])
+        print(daysAhead2)
+
+        predictStart = getDateInPast(predictDate,daysAhead2+daysBefore2-1)
         print(f"predict start date: {predictStart}")
-        predictEnd = getDateInPast(predictDate, daysAhead-1)
+        predictEnd = getDateInPast(predictDate, daysAhead2-1)
         print(f"predict end date: {predictEnd}")
 
         if NEW_MODEL:
