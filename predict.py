@@ -55,11 +55,11 @@ trainEnd = "2020-3-11"
 testStart = "2020-03-11"
 testEnd = "2021-3-11"
 
-daysBefore = 20                 #total days in period for prediction
+daysBefore = 5                 #total days in period for prediction
 daysAhead = 1                   #1 for day immediately after
 
-expectedTrain = 232
-expectedTest = 232
+expectedTrain = 247
+expectedTest = 247
 
 TRAIN_EPOCHS = 10
 BATCH_SIZE_TRAIN = 16
@@ -80,15 +80,15 @@ if PREDICT:
 #variables for predicting
 NEW_MODEL = False
 predictDate = "2021-03-15"
-savedModelName = "20_1_1"
+savedModelName = "5_1_mk1"
 
 graphPath = "./info/pyplots/newestPlot.png"
 dataPath = "./info/datasets/allSpy.npy"
 checkpointPath = "./info/checkpoints"
 stocksIncludedPath = "./info/datasets/stocksIncluded.txt"
-savedModelsPath = "./savedModels/"
-previousSavePath = f"{savedModelsPath}{savedModelName}/"
-previousSavestocksIncludedPath = f"{savedModelsPath}{savedModelName}/stocksIncluded.txt"
+savedModelsPath = "./savedModels"
+previousSavePath = f"{savedModelsPath}/{savedModelName}/"
+previousSavestocksIncludedPath = f"{savedModelsPath}/{savedModelName}/stocksIncluded.txt"
 
 customCallback = tf.keras.callbacks.ModelCheckpoint(
     filepath=checkpointPath,
@@ -168,6 +168,39 @@ def getY(hist):
     Y = Y.flatten()
 
     return Y
+
+def readFile(filePath):
+    f = open(filePath, 'r')
+    contents = f.read()
+    f.close()
+
+    return contents
+
+def writeFile(filePath, contents):
+    f = open(filePath, 'w')
+    f.write(contents)
+    f.close()
+
+def getJustPriceGraph(histTestIndex, testY, predictions):
+    fig = plt.figure("preds vs real high price", figsize=(10, 4))
+    fig.tight_layout()
+    plt2 = fig.add_subplot(111)
+    plt2.plot(histTestIndex.index, testY, color="blue", label="real")
+    plt2.plot(histTestIndex.index, predictions, color="red", label="preds")
+    plt2.legend(loc='upper left')
+
+    return fig
+
+def parseDaysBeforeAndAhead():
+    index1 = savedModelName.find("_")
+    daysBefore = int(savedModelName[:index1])
+    print(daysBefore)
+    savedModelName2 = savedModelName[index1+1:]
+    index2 = savedModelName2.find("_")
+    daysAhead = int(savedModelName2[:index2])
+    print(daysAhead)
+
+    return daysBefore, daysAhead
 
 def getDateInPast(initial, days):
     #inspiration from https://stackoverflow.com/a/12691993
@@ -262,42 +295,37 @@ def main():
             test = getData(f"{stock}", testStart, testEnd)
             trainXstock = np.transpose(getX(train))
             testXstock = np.transpose(getX(test))
-            # trainXstock = getX(train).reshape()
-            # testXstock = getX(test).reshape()
             print(f"train stock shape: {trainXstock.shape}")
             print(f"test stock shape: {testXstock.shape}")
 
-            if trainXstock.shape[0] != 0:
+            if trainXstock.shape[0] != 0 and testXstock.shape[0] != 0:
                 if trainXstock.shape[1] != expectedTrain or testXstock.shape[1] != expectedTest:
                     print("possible error: did not set expectedTrain and expectedTest")
-                    if testXstock.shape[0] != expectedTest:
-                        while testXstock.shape[0] < expectedTest:
-                            print(testXstock)
-                            testXstock = np.vstack([testXstock[0],testXstock])
-                            print(testXstock)
-                        while testXstock.shape[0] > dexpectedTest:
-                            print(testXstock)
-                            testXstock = np.delete(testXstock,expectedTest)
-                            print(testXstock)
 
-                    if trainXstock.shape[0] != expectedTrain:
-                        while trainXstock.shape[0] < expectedTrain:
-                            print(trainXstock)
-                            testXstock = np.vstack([trainXstock[0],trainXstock])
-                            print(testXstock)
-                        while trainXstock.shape[0] > expectedTrain:
-                            print(trainXstock)
-                            trainXstock = np.delete(trainXstock,expectedTrain)
-                            print(trainXstock)
+                    trainXstock = np.transpose(trainXstock)
+                    while trainXstock.shape[0] < expectedTrain:
+                        trainXstock = np.vstack([trainXstock[0],trainXstock])
+                    while trainXstock.shape[0] > expectedTrain:
+                        trainXstock = np.delete(trainXstock,expectedTrain,0)
+                    trainXstock = np.transpose(trainXstock)
 
+                    testXstock = np.transpose(testXstock)
+                    while testXstock.shape[0] < expectedTest:
+                        testXstock = np.vstack([testXstock[0],testXstock])
+                    while testXstock.shape[0] > expectedTest:
+                        testXstock = np.delete(testXstock,expectedTest,0)
+                    testXstock = np.transpose(testXstock)
 
-                f.write(f" {stock} ")
-                trainXstock = trainXstock.reshape((1,daysBefore,-1))
-                testXstock = testXstock.reshape((1,daysBefore,-1))
-                # trainXstock = np.swapaxes(trainXstock,0,1)
-                # testXstock = np.swapaxes(testXstock,0,1)
-                stockHistsTrainX.append(trainXstock)
-                stockHistsTestX.append(testXstock)
+                    print("sketch fix, revised array shape below")
+                    print(f"train stock shape: {trainXstock.shape}")
+                    print(f"test stock shape: {testXstock.shape}")
+
+                if trainXstock.shape[1] == expectedTrain and testXstock.shape[1] == expectedTest:
+                    f.write(f" {stock} ")
+                    trainXstock = trainXstock.reshape((1,daysBefore,-1))
+                    testXstock = testXstock.reshape((1,daysBefore,-1))
+                    stockHistsTrainX.append(trainXstock)
+                    stockHistsTestX.append(testXstock)
 
         f.close()
 
@@ -390,12 +418,7 @@ def main():
             plt.savefig(graphPath)
             plt.show()
         else:
-            fig = plt.figure("preds vs real high price", figsize=(10, 4))
-            fig.tight_layout()
-            plt2 = fig.add_subplot(111)
-            plt2.plot(histTestIndex.index, testY, color="blue", label="real")
-            plt2.plot(histTestIndex.index, predictions, color="red", label="preds")
-            plt2.legend(loc='upper left')
+            fig = getJustPriceGraph(histTestIndex, testY, predictions)
             plt.savefig(graphPath)
             plt.show()
 
@@ -418,49 +441,33 @@ def main():
                 if confirm == "y":
                     break
 
-            #create new saved model folder
-            newFolderPath = f"{savedModelsPath}{daysBefore}_{daysAhead}_{version}"
-            os.mkdir(f"{newFolderPath}")
+            print("[INFO] Making New Model Folder.")
+            newFolderPath = f"{savedModelsPath}/{daysBefore}_{daysAhead}_{version}"
+            os.mkdir(newFolderPath)
+
             print("[INFO] Saving Pyplot.")
-            fig = plt.figure("preds vs real high price", figsize=(10, 4))
-            fig.tight_layout()
-            plt2 = fig.add_subplot(111)
-            plt2.plot(histTestIndex.index, testY, color="blue", label="real")
-            plt2.plot(histTestIndex.index, predictions, color="red", label="preds")
-            plt2.legend(loc='upper left')
+            fig = getJustPriceGraph(histTestIndex, testY, predictions)
             plt.savefig(f"{newFolderPath}/{daysBefore}_{daysAhead}_{version}.png")
+
             print("[INFO] Saving Included Stocks Text File.")
-            f = open(f"{stocksIncludedPath}", 'r')
-            stocksIncluded = f.read()
-            f.close()
-            f = open(f"{newFolderPath}/stocksIncluded.txt", 'w')
-            f.write(stocksIncluded)
-            f.close()
+            stocksIncluded = readFile(stocksIncludedPath)
+            writeFile(f"{newFolderPath}/stocksIncluded.txt", stocksIncluded)
+
             print("[INFO] Saving Model.")
-            bestModel.save(f"{newFolderPath}")
+            bestModel.save(newFolderPath)
 
     if PREDICT:
-        index1 = savedModelName.find("_")
-        daysBefore2 = int(savedModelName[:index1])
-        print(daysBefore2)
-        savedModelName2 = savedModelName[index1+1:]
-        index2 = savedModelName2.find("_")
-        daysAhead2 = int(savedModelName2[:index2])
-        print(daysAhead2)
+        before, ahead = parseDaysBeforeAndAhead()
 
-        predictStart = getDateInPast(predictDate,daysAhead2+daysBefore2-1)
+        predictStart = getDateInPast(predictDate,ahead+before-1)
         print(f"predict start date: {predictStart}")
-        predictEnd = getDateInPast(predictDate, daysAhead2-1)
+        predictEnd = getDateInPast(predictDate, ahead-1)
         print(f"predict end date: {predictEnd}")
 
         if NEW_MODEL:
-            f = open(f"{stocksIncludedPath}", 'r')
-            stocksIncluded = f.read()
-            f.close()
+            stocksIncluded = readFile(stocksIncludedPath)
         else:
-            f = open(f"{previousSavestocksIncludedPath}", 'r')
-            stocksIncluded = f.read()
-            f.close()
+            stocksIncluded = readFile(previousSavestocksIncludedPath)
 
         print("[INFO] Loading Prediction Datasets.")
 
