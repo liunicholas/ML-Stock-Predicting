@@ -31,10 +31,8 @@ import os
 #     print('[INFO] GPU not detected.')
 
 #STUFF TO DO
-#normalization
-#predict future
-#check for the extra dates
-#gpu
+#natural log of dataset
+#gpu get cuda 11
 
 print('[INFO] Done importing packages.')
 
@@ -55,11 +53,11 @@ trainEnd = "2020-3-11"
 testStart = "2020-03-11"
 testEnd = "2021-3-11"
 
-daysBefore = 5                 #total days in period for prediction
-daysAhead = 1                   #1 for day immediately after
+daysBefore = 20                #total days in period for prediction
+daysAhead = 2                  #1 for day immediately after
 
-expectedTrain = 247
-expectedTest = 247
+expectedTrain = 231
+expectedTest = 231
 
 TRAIN_EPOCHS = 10
 BATCH_SIZE_TRAIN = 16
@@ -71,7 +69,7 @@ LOAD_DATASET = True
 TRAIN = True
 TEST = True
 
-PREDICT = True
+PREDICT = False
 if PREDICT:
     LOAD_DATASET = False
     TRAIN = False
@@ -79,7 +77,7 @@ if PREDICT:
 
 #variables for predicting
 NEW_MODEL = False
-predictDate = "2021-03-15"
+predictDate = "2021-03-16"
 savedModelName = "5_1_mk1"
 
 graphPath = "./info/pyplots/newestPlot.png"
@@ -128,10 +126,8 @@ def getX(hist):
     histNP = hist.to_numpy()
     #to get columns
     histNP = np.transpose(histNP)
-    # open = histNP[0]
+    #open = 0, high = 1, low = 2, close = 3
     high = histNP[1]
-    # low = histNP[2]
-    # close = histNP[3]
 
     X = []
     #uses daysBefore previous days
@@ -146,6 +142,7 @@ def getXpredict(hist):
     histNP = hist.to_numpy()
     #to get columns
     histNP = np.transpose(histNP)
+    #open = 0, high = 1, low = 2, close = 3
     high = histNP[1]
 
     return np.array([high])
@@ -154,10 +151,8 @@ def getY(hist):
     histNP = hist.to_numpy()
     #to get columns
     histNP = np.transpose(histNP)
-    # open = histNP[0]
+    #open = 0, high = 1, low = 2, close = 3
     high = histNP[1]
-    # low = histNP[2]
-    # close = histNP[3]
 
     Y = []
     #target is daysBefore+1
@@ -168,6 +163,56 @@ def getY(hist):
     Y = Y.flatten()
 
     return Y
+
+def removeNaN(stockArray):
+    for rowIndex in range(stockArray.shape[0]):
+        sum = 0
+        counter = 0
+        for val in stockArray[rowIndex]:
+            if not np.isnan(val):
+                sum += val
+                counter += 1
+        avg = sum/counter
+
+        for i in range(stockArray[rowIndex].shape[0]):
+            if np.isnan(stockArray[rowIndex][i]):
+                print("NaN Found")
+                stockArray[rowIndex][i] = avg
+
+    return stockArray
+
+def fixData(stockArray, expectedVal):
+    stockArray = np.transpose(stockArray)
+    while stockArray.shape[0] < expectedVal:
+        stockArray = np.vstack([stockArray[0],stockArray])
+    while stockArray.shape[0] > expectedVal:
+        stockArray = np.delete(stockArray,0,0)
+    stockArray = np.transpose(stockArray)
+
+    return stockArray
+
+def stackTransposeSwap(stocksList):
+    stocksCombined = np.vstack(stocksList)
+    xSet = np.transpose(stocksCombined)
+    xSet = np.swapaxes(xSet,1,2)
+
+    return xSet
+
+def saveDataSet(dataPath, trainX, trainY, testX, testY):
+    with open(dataPath, 'wb') as f:
+        np.save(f, trainX)
+        np.save(f, trainY)
+        np.save(f, testX)
+        np.save(f, testY)
+
+def loadDataSet(dataPath):
+    with open(dataPath, 'rb') as f:
+        trainX = np.load(f)
+        trainY = np.load(f)
+        testX = np.load(f)
+        testY =  np.load(f)
+
+    return trainX, trainY, testX, testY
 
 def readFile(filePath):
     f = open(filePath, 'r')
@@ -194,11 +239,11 @@ def getJustPriceGraph(histTestIndex, testY, predictions):
 def parseDaysBeforeAndAhead():
     index1 = savedModelName.find("_")
     daysBefore = int(savedModelName[:index1])
-    print(daysBefore)
+    # print(daysBefore)
     savedModelName2 = savedModelName[index1+1:]
     index2 = savedModelName2.find("_")
     daysAhead = int(savedModelName2[:index2])
-    print(daysAhead)
+    # print(daysAhead)
 
     return daysBefore, daysAhead
 
@@ -293,8 +338,10 @@ def main():
             print(f"[INFO] Loading Dataset For {stock}.")
             train = getData(f"{stock}", trainStart, trainEnd)
             test = getData(f"{stock}", testStart, testEnd)
-            trainXstock = np.transpose(getX(train))
-            testXstock = np.transpose(getX(test))
+            train = removeNaN(getX(train))
+            test = removeNaN(getX(test))
+            trainXstock = np.transpose(train)
+            testXstock = np.transpose(test)
             print(f"train stock shape: {trainXstock.shape}")
             print(f"test stock shape: {testXstock.shape}")
 
@@ -302,19 +349,8 @@ def main():
                 if trainXstock.shape[1] != expectedTrain or testXstock.shape[1] != expectedTest:
                     print("possible error: did not set expectedTrain and expectedTest")
 
-                    trainXstock = np.transpose(trainXstock)
-                    while trainXstock.shape[0] < expectedTrain:
-                        trainXstock = np.vstack([trainXstock[0],trainXstock])
-                    while trainXstock.shape[0] > expectedTrain:
-                        trainXstock = np.delete(trainXstock,expectedTrain,0)
-                    trainXstock = np.transpose(trainXstock)
-
-                    testXstock = np.transpose(testXstock)
-                    while testXstock.shape[0] < expectedTest:
-                        testXstock = np.vstack([testXstock[0],testXstock])
-                    while testXstock.shape[0] > expectedTest:
-                        testXstock = np.delete(testXstock,expectedTest,0)
-                    testXstock = np.transpose(testXstock)
+                    trainXstock = fixData(trainXstock, expectedTrain)
+                    testXstock = fixData(trainXstock, expectedTrain)
 
                     print("sketch fix, revised array shape below")
                     print(f"train stock shape: {trainXstock.shape}")
@@ -326,22 +362,15 @@ def main():
                     testXstock = testXstock.reshape((1,daysBefore,-1))
                     stockHistsTrainX.append(trainXstock)
                     stockHistsTestX.append(testXstock)
-
         f.close()
 
         print(f"[INFO] Rehaping Dataset.")
         print(f"train stock shape after reshape: {stockHistsTrainX[0].shape}")
         print(f"test stock shape after reshape: {stockHistsTestX[0].shape}")
 
-        stockHistsTrainX = np.vstack(stockHistsTrainX)
-        stockHistsTestX = np.vstack(stockHistsTestX)
-        trainX = np.transpose(stockHistsTrainX)
-        testX = np.transpose(stockHistsTestX)
+        trainX = stackTransposeSwap(stockHistsTrainX)
+        testX = stackTransposeSwap(stockHistsTestX)
 
-        print(f"total shape before change train: {trainX.shape}")
-        print(f"total shape before change test: {testX.shape}")
-        trainX = np.swapaxes(trainX,1,2)
-        testX = np.swapaxes(testX,1,2)
         print(f"total shape after change train: {trainX.shape}")
         print(f"total shape after change test: {testX.shape}")
 
@@ -354,19 +383,11 @@ def main():
         print(f"target shape train: {trainY.shape}")
         print(f"target shape test: {testY.shape}")
 
-        with open(f'{dataPath}', 'wb') as f:
-            np.save(f, trainX)
-            np.save(f, trainY)
-            np.save(f, testX)
-            np.save(f, testY)
+        saveDataSet(dataPath, trainX, trainY, testX, testY)
 
     if TRAIN:
         if not LOAD_DATASET:
-            with open(f'{dataPath}', 'rb') as f:
-                trainX = np.load(f)
-                trainY = np.load(f)
-                testX = np.load(f)
-                testY =  np.load(f)
+            trainX, trainY, testX, testY = loadDataSet(dataPath)
 
         assert trainX.shape[1] == testX.shape[1]
         numStocks = trainX.shape[1]
@@ -385,11 +406,8 @@ def main():
 
     if TEST:
         if not LOAD_DATASET and not TRAIN:
-            with open(f'{dataPath}', 'rb') as f:
-                trainX = np.load(f)
-                trainY = np.load(f)
-                testX = np.load(f)
-                testY =  np.load(f)
+            trainX, trainY, testX, testY = loadDataSet(dataPath)
+
         histTestIndex = getData(f"{INDEX}", testStart, testEnd)
         histTestIndex = histTestIndex.iloc[daysBefore+daysAhead-1:]
 
@@ -434,7 +452,7 @@ def main():
                 version = input("version name: ")
                 while True:
                     confirm = input("confirm? (y/n)")
-                    if confirm != "y" and keep != "n":
+                    if confirm != "y" and confirm != "n":
                         print("error")
                         continue
                     break
@@ -483,6 +501,21 @@ def main():
                 test = getData(f"{stock}", predictStart, predictEnd)
                 testXstock = np.transpose(getXpredict(test))
                 print(f"test stock shape: {testXstock.shape}")
+
+                #remove nan
+                sum = 0
+                counter = 0
+                for val in testXstock:
+                    if not np.isnan(val[0]):
+                        sum += val[0]
+                        counter += 1
+                avg = sum/counter
+
+                for index in range(testXstock.shape[0]):
+                    if np.isnan(testXstock[index][0]):
+                        print("NaN Found")
+                        testXstock[index][0] = avg
+
                 if testXstock.shape[0] != daysBefore:
                     while testXstock.shape[0] < daysBefore:
                         print(testXstock)
@@ -490,8 +523,9 @@ def main():
                         print(testXstock)
                     while testXstock.shape[0] > daysBefore:
                         print(testXstock)
-                        testXstock = np.delete(testXstock,daysBefore)
+                        testXstock = np.delete(testXstock,0)
                         print(testXstock)
+
                 testXstock = testXstock.reshape((1,daysBefore,-1))
                 stockHistsTestX.append(testXstock)
 
@@ -500,8 +534,6 @@ def main():
 
         stockHistsTestX = np.vstack(stockHistsTestX)
         testX = np.transpose(stockHistsTestX)
-
-        print(f"total shape before change test: {testX.shape}")
         testX = np.swapaxes(testX,1,2)
         print(f"total shape after change test: {testX.shape}")
 
