@@ -31,7 +31,7 @@ import os
 #     print('[INFO] GPU not detected.')
 
 #STUFF TO DO
-#natural log of dataset
+#natural log of dataset UPDATE: terrible idea
 #gpu get cuda 11
 
 print('[INFO] Done importing packages.')
@@ -47,11 +47,14 @@ indexSource = "https://en.wikipedia.org/wiki/List_of_S%26P_500_companies"
 shortList = ["AAPL", "MSFT", "AMZN", "FB", "GOOGL",
     "GOOG", "TSLA", "BRK.B", "JPM", "JNJ"]
 
-#dates for training and testing range
-trainStart = "2019-03-12"
-trainEnd = "2020-9-11"
+#set QUICK_RUN to true for quick testing
+#set PREDICT_ON_DATE to true and OVERRIDE to true for just predicting a date
 
-testStart = "2020-09-11"
+#dates for training and testing range
+trainStart = "2018-12-21"
+trainEnd = "2020-2-14"
+
+testStart = "2020-03-20"
 testEnd = "2021-3-11"
 
 LOAD_DATASET = True           #set to false when testing architecture
@@ -59,11 +62,11 @@ USE_ALL_STOCKS = True         #set to false for just testing
 OHLC = 1                      #open = 0, high = 1, low = 2, close = 3
 
 daysBefore = 21                #total days in period for prediction
-daysAhead = 7                  #total days predicting in future
-expectedTrain = 353            #find with test run
-expectedTest = 97             #find with test run
+daysAhead = 1                  #total days predicting in future
+expectedTrain = 267            #find with test run
+expectedTest = 224             #find with test run
 
-QUICK_RUN = False              #for just testing code 
+QUICK_RUN = False              #for just testing code
 
 TRAIN = True
 TRAIN_EPOCHS = 10
@@ -77,8 +80,8 @@ PREDICT_ON_DATE = False        #set to true to predict day
 OVERRIDE = True                #overrides load, train, test, and new_model
 
 #vars for predicting
-predictDate = "2021-03-25"
-savedModelName = "21_7_7daysFuture"
+predictDate = "2021-03-17"
+savedModelName = "5_1_mk1"
 
 graphPath = "./info/pyplots/newestPlot.png"                  #save mpl graph
 dataPath = "./info/datasets/allSpy.npy"                      #save npy arrays
@@ -161,7 +164,9 @@ def getXnumpyPredict(hist):
     histNP = np.transpose(histNP)
     high = histNP[OHLC]
 
-    return np.array([high])
+    X = np.array([high])
+
+    return X
 #get a formatted dataset of OHLC of index as numpy array
 def getYnumpy(hist):
     histNP = hist.to_numpy()
@@ -196,6 +201,22 @@ def removeNaN(stockArray):
                 stockArray[rowIndex][i] = avg
 
     return stockArray
+#same as above but for single column of data
+def removeNaNsingleColumn(stockArray):
+    sum = 0
+    counter = 0
+    for val in stockArray:
+        if not np.isnan(val[0]):
+            sum += val[0]
+            counter += 1
+    avg = sum/counter
+
+    for index in range(stockArray.shape[0]):
+        if np.isnan(stockArray[index][0]):
+            print("NaN Found")
+            stockArray[index][0] = avg
+
+    return stockArray
 #adds or removes data as necessary to fit expected train and test values
 def fixData(stockArray, expectedVal):
     stockArray = np.transpose(stockArray)
@@ -204,6 +225,18 @@ def fixData(stockArray, expectedVal):
     while stockArray.shape[0] > expectedVal:
         stockArray = np.delete(stockArray,0,0)
     stockArray = np.transpose(stockArray)
+
+    return stockArray
+#same as above but for single column
+def fixDataSingleColumn(stockArray, expectedVal):
+    while stockArray.shape[0] < expectedVal:
+        print(stockArray)
+        stockArray = np.vstack([stockArray[0],stockArray])
+        print(stockArray)
+    while stockArray.shape[0] > expectedVal:
+        print(stockArray)
+        stockArray = np.delete(stockArray,0)
+        print(stockArray)
 
     return stockArray
 #vstack, transpose, swaps axis 1 and 2
@@ -358,11 +391,11 @@ def getJustPriceGraph(histTestIndex, testY, predictions):
 def parseDaysBeforeAndAhead():
     index1 = savedModelName.find("_")
     daysBefore = int(savedModelName[:index1])
-    print(daysBefore)
+    print(f"parsed daysBefore: {daysBefore}")
     savedModelName2 = savedModelName[index1+1:]
     index2 = savedModelName2.find("_")
     daysAhead = int(savedModelName2[:index2])
-    print(daysAhead)
+    print(f"parsed daysAhead: {daysAhead}")
 
     return daysBefore, daysAhead
 #get x days in past excluding holidays and weekends
@@ -381,7 +414,7 @@ def getDateInPast(initial, days):
 
     return currentDate
 
-#TODO: play with nn architecture later
+#CNN for 3D numpy array
 class CNN():
     def __init__(self, input_shape):
         self.model = models.Sequential()
@@ -435,198 +468,200 @@ class CNN():
     def print_summary(self, summaryStr):
         print(summaryStr)
 
+#load and format dataset
+def loadData():
+    print("[INFO] Loading Traning and Test Datasets.")
+
+    if USE_ALL_STOCKS:
+        INDEX_STOCKS = getTickers()
+    else:
+        INDEX_STOCKS = shortList
+
+    f = open(f"{stocksIncludedPath}", 'w')
+
+    stockHistsTrainX = []
+    stockHistsTestX = []
+    for stock in INDEX_STOCKS:
+        print(f"[INFO] Loading Dataset For {stock}.")
+        train = getData(f"{stock}", trainStart, trainEnd)
+        test = getData(f"{stock}", testStart, testEnd)
+        train = removeNaN(getXnumpy(train))
+        test = removeNaN(getXnumpy(test))
+        trainXstock = np.transpose(train)
+        testXstock = np.transpose(test)
+        print(f"train stock shape: {trainXstock.shape}")
+        print(f"test stock shape: {testXstock.shape}")
+
+        if trainXstock.shape[0] != 0 and testXstock.shape[0] != 0:
+            if trainXstock.shape[1] != expectedTrain or testXstock.shape[1] != expectedTest:
+                print("possible error: did not set expectedTrain and expectedTest")
+
+                trainXstock = fixData(trainXstock, expectedTrain)
+                testXstock = fixData(testXstock, expectedTest)
+
+                print("sketch fix, revised array shape below")
+                print(f"train stock shape: {trainXstock.shape}")
+                print(f"test stock shape: {testXstock.shape}")
+
+            if trainXstock.shape[1] == expectedTrain and testXstock.shape[1] == expectedTest:
+                f.write(f" {stock} ")
+                trainXstock = trainXstock.reshape((1,daysBefore,-1))
+                testXstock = testXstock.reshape((1,daysBefore,-1))
+                stockHistsTrainX.append(trainXstock)
+                stockHistsTestX.append(testXstock)
+    f.close()
+
+    print(f"[INFO] Rehaping Dataset.")
+    print(f"train stock shape after reshape: {stockHistsTrainX[0].shape}")
+    print(f"test stock shape after reshape: {stockHistsTestX[0].shape}")
+
+    trainX = stackTransposeSwap(stockHistsTrainX)
+    testX = stackTransposeSwap(stockHistsTestX)
+
+    print(f"total shape after change train: {trainX.shape}")
+    print(f"total shape after change test: {testX.shape}")
+
+    #index target prices
+    print("[INFO] Loading Index Data.")
+    histTrainIndex = getData(f"{INDEX}", trainStart, trainEnd)
+    histTestIndex = getData(f"{INDEX}", testStart, testEnd)
+    trainY = getYnumpy(histTrainIndex)
+    testY = getYnumpy(histTestIndex)
+    print(f"target shape train: {trainY.shape}")
+    print(f"target shape test: {testY.shape}")
+
+    saveDataSet(dataPath, trainX, trainY, testX, testY)
+
+#train it with CNN
+def train():
+    trainX, trainY, testX, testY = loadDataSet(dataPath)
+
+    # trainX = np.log(trainX)
+    # testX = np.log(testX)
+
+    numStocks = getNumStocks(testX, trainX)
+    cnn = CNN((numStocks, daysBefore))
+
+    global results
+    results = cnn.model.fit(generator(BATCH_SIZE_TRAIN, trainX, trainY),
+        validation_data=generator(BATCH_SIZE_TEST, testX, testY),
+        shuffle = True,
+        epochs = TRAIN_EPOCHS,
+        batch_size = BATCH_SIZE_TRAIN,
+        validation_batch_size = BATCH_SIZE_TEST,
+        verbose = 1,
+        steps_per_epoch=len(trainX)/BATCH_SIZE_TRAIN,
+        validation_steps=len(testX)/BATCH_SIZE_TEST,
+        callbacks=[customCallback])
+
+#make predictions on old data
+def test():
+    trainX, trainY, testX, testY = loadDataSet(dataPath)
+
+    # trainX = np.log(trainX)
+    # testX = np.log(testX)
+
+    histTestIndex = getData(f"{INDEX}", testStart, testEnd)
+    histTestIndex = histTestIndex.iloc[daysBefore+daysAhead-1:]
+
+    if NEW_MODEL:
+        bestModel = tf.keras.models.load_model(checkpointPath)
+    else:
+        bestModel = tf.keras.models.load_model(previousSavePath)
+
+    print(f"[INFO] Making Predictions.")
+    predictions = bestModel.predict(testX)
+    displayPredictionsAsText(histTestIndex, predictions)
+
+    if TRAIN:
+        fig = getLossAndPriceGraph(results, histTestIndex, testY, predictions)
+        plt.savefig(graphPath)
+        plt.show()
+    else:
+        fig = getJustPriceGraph(histTestIndex, testY, predictions)
+        plt.savefig(graphPath)
+        plt.show()
+
+    #ask to save model if new model
+    if NEW_MODEL:
+        keep = askUserSaveModel()
+        if keep == "y":
+            version = getVersionName()
+
+            newFolderPath = makeNewFolder(version)
+            savePyPlot(newFolderPath, version, histTestIndex, testY, predictions)
+            saveIncludedStocks(newFolderPath)
+            saveModel(newFolderPath, bestModel)
+
+            numStocks = getNumStocks(testX, trainX)
+            saveParameters(newFolderPath, version, numStocks)
+
+#predict future date
+def PredictOnDate():
+    daysBefore, daysAhead = parseDaysBeforeAndAhead()
+
+    predictStart = getDateInPast(predictDate,daysAhead+daysBefore-1)
+    print(f"predict start date: {predictStart}")
+    predictEnd = getDateInPast(predictDate, daysAhead-1)
+    print(f"predict end date: {predictEnd}")
+
+    if NEW_MODEL:
+        stocksIncluded = readFile(stocksIncludedPath)
+    else:
+        stocksIncluded = readFile(previousStocksIncludedPath)
+
+    print("[INFO] Loading Prediction Datasets.")
+
+    INDEX_STOCKS = getTickers()
+
+    #loads necessary data for the one needed prediction
+    stockHistsTestX = []
+    for stock in INDEX_STOCKS:
+        if " " + stock + " " in stocksIncluded:
+            print(f"[INFO] Loading Testset For {stock}.")
+            test = getData(f"{stock}", predictStart, predictEnd)
+            testXstock = np.transpose(getXnumpyPredict(test))
+            print(f"test stock shape: {testXstock.shape}")
+
+            #remove NaN from dataset
+            testXstock = removeNaNsingleColumn(testXstock)
+
+            #adds or removes rows as needed
+            if testXstock.shape[0] != daysBefore:
+                stockArray = fixDataSingleColumn(stockArray, daysBefore)
+
+            testXstock = testXstock.reshape((1,daysBefore,-1))
+            stockHistsTestX.append(testXstock)
+
+    print(f"[INFO] Rehaping Testset.")
+    print(f"test stock shape after reshape: {stockHistsTestX[0].shape}")
+
+    testX = stackTransposeSwap(stockHistsTestX)
+    print(f"total shape after change test: {testX.shape}")
+
+    # testX = np.log(testX)
+
+    if NEW_MODEL:
+        bestModel = tf.keras.models.load_model(checkpointPath)
+    else:
+        bestModel = tf.keras.models.load_model(previousSavePath)
+
+    print(f"[INFO] Making Prediction.")
+    prediction = bestModel.predict(testX)
+
+    print(f"\nprediction for {predictDate}: {prediction[0][0]}\n")
+
 def main():
     setModes()
     setCustomCallback()
 
     if LOAD_DATASET:
-        print("[INFO] Loading Traning and Test Datasets.")
-
-        if USE_ALL_STOCKS:
-            INDEX_STOCKS = getTickers()
-        else:
-            INDEX_STOCKS = shortList
-
-        f = open(f"{stocksIncludedPath}", 'w')
-
-        stockHistsTrainX = []
-        stockHistsTestX = []
-        for stock in INDEX_STOCKS:
-            print(f"[INFO] Loading Dataset For {stock}.")
-            train = getData(f"{stock}", trainStart, trainEnd)
-            test = getData(f"{stock}", testStart, testEnd)
-            train = removeNaN(getXnumpy(train))
-            test = removeNaN(getXnumpy(test))
-            trainXstock = np.transpose(train)
-            testXstock = np.transpose(test)
-            print(f"train stock shape: {trainXstock.shape}")
-            print(f"test stock shape: {testXstock.shape}")
-
-            if trainXstock.shape[0] != 0 and testXstock.shape[0] != 0:
-                if trainXstock.shape[1] != expectedTrain or testXstock.shape[1] != expectedTest:
-                    print("possible error: did not set expectedTrain and expectedTest")
-
-                    trainXstock = fixData(trainXstock, expectedTrain)
-                    testXstock = fixData(trainXstock, expectedTrain)
-
-                    print("sketch fix, revised array shape below")
-                    print(f"train stock shape: {trainXstock.shape}")
-                    print(f"test stock shape: {testXstock.shape}")
-
-                if trainXstock.shape[1] == expectedTrain and testXstock.shape[1] == expectedTest:
-                    f.write(f" {stock} ")
-                    trainXstock = trainXstock.reshape((1,daysBefore,-1))
-                    testXstock = testXstock.reshape((1,daysBefore,-1))
-                    stockHistsTrainX.append(trainXstock)
-                    stockHistsTestX.append(testXstock)
-        f.close()
-
-        print(f"[INFO] Rehaping Dataset.")
-        print(f"train stock shape after reshape: {stockHistsTrainX[0].shape}")
-        print(f"test stock shape after reshape: {stockHistsTestX[0].shape}")
-
-        trainX = stackTransposeSwap(stockHistsTrainX)
-        testX = stackTransposeSwap(stockHistsTestX)
-
-        print(f"total shape after change train: {trainX.shape}")
-        print(f"total shape after change test: {testX.shape}")
-
-        #index target prices
-        print("[INFO] Loading Index Data.")
-        histTrainIndex = getData(f"{INDEX}", trainStart, trainEnd)
-        histTestIndex = getData(f"{INDEX}", testStart, testEnd)
-        trainY = getYnumpy(histTrainIndex)
-        testY = getYnumpy(histTestIndex)
-        print(f"target shape train: {trainY.shape}")
-        print(f"target shape test: {testY.shape}")
-
-        saveDataSet(dataPath, trainX, trainY, testX, testY)
-
+        loadData()
     if TRAIN:
-        #load dataset if didn't load dataset in current execution
-        if not LOAD_DATASET:
-            trainX, trainY, testX, testY = loadDataSet(dataPath)
-
-        numStocks = getNumStocks(testX, trainX)
-        cnn = CNN((numStocks, daysBefore))
-
-        results = cnn.model.fit(generator(BATCH_SIZE_TRAIN, trainX, trainY),
-            validation_data=generator(BATCH_SIZE_TEST, testX, testY),
-            shuffle = True,
-            epochs = TRAIN_EPOCHS,
-            batch_size = BATCH_SIZE_TRAIN,
-            validation_batch_size = BATCH_SIZE_TEST,
-            verbose = 1,
-            steps_per_epoch=len(trainX)/BATCH_SIZE_TRAIN,
-            validation_steps=len(testX)/BATCH_SIZE_TEST,
-            callbacks=[customCallback])
-
+        train()
     if TEST:
-        #load dataset if didn't load dataset in current execution
-        if not LOAD_DATASET and not TRAIN:
-            trainX, trainY, testX, testY = loadDataSet(dataPath)
-
-        histTestIndex = getData(f"{INDEX}", testStart, testEnd)
-        histTestIndex = histTestIndex.iloc[daysBefore+daysAhead-1:]
-
-        if NEW_MODEL:
-            bestModel = tf.keras.models.load_model(checkpointPath)
-        else:
-            bestModel = tf.keras.models.load_model(previousSavePath)
-
-        print(f"[INFO] Making Predictions.")
-        predictions = bestModel.predict(testX)
-        displayPredictionsAsText(histTestIndex, predictions)
-
-        if TRAIN:
-            fig = getLossAndPriceGraph(results, histTestIndex, testY, predictions)
-            plt.savefig(graphPath)
-            plt.show()
-        else:
-            fig = getJustPriceGraph(histTestIndex, testY, predictions)
-            plt.savefig(graphPath)
-            plt.show()
-
-        #ask to save model if new model
-        if NEW_MODEL:
-            keep = askUserSaveModel()
-            if keep == "y":
-                version = getVersionName()
-
-                newFolderPath = makeNewFolder(version)
-                savePyPlot(newFolderPath, version, histTestIndex, testY, predictions)
-                saveIncludedStocks(newFolderPath)
-                saveModel(newFolderPath, bestModel)
-
-                numStocks = getNumStocks(testX, trainX)
-                saveParameters(newFolderPath, version, numStocks)
-
+        test()
     if PREDICT_ON_DATE:
-        before, ahead = parseDaysBeforeAndAhead()
-
-        predictStart = getDateInPast(predictDate,ahead+before-1)
-        print(f"predict start date: {predictStart}")
-        predictEnd = getDateInPast(predictDate, ahead-1)
-        print(f"predict end date: {predictEnd}")
-
-        if NEW_MODEL:
-            stocksIncluded = readFile(stocksIncludedPath)
-        else:
-            stocksIncluded = readFile(previousStocksIncludedPath)
-
-        print("[INFO] Loading Prediction Datasets.")
-
-        INDEX_STOCKS = getTickers()
-
-        stockHistsTestX = []
-        for stock in INDEX_STOCKS:
-            if " " + stock + " " in stocksIncluded:
-                print(f"[INFO] Loading Testset For {stock}.")
-                test = getData(f"{stock}", predictStart, predictEnd)
-                testXstock = np.transpose(getXnumpyPredict(test))
-                print(f"test stock shape: {testXstock.shape}")
-
-                #remove NaN from dataset
-                sum = 0
-                counter = 0
-                for val in testXstock:
-                    if not np.isnan(val[0]):
-                        sum += val[0]
-                        counter += 1
-                avg = sum/counter
-
-                for index in range(testXstock.shape[0]):
-                    if np.isnan(testXstock[index][0]):
-                        print("NaN Found")
-                        testXstock[index][0] = avg
-
-                if testXstock.shape[0] != before:
-                    while testXstock.shape[0] < before:
-                        print(testXstock)
-                        testXstock = np.vstack([testXstock[0],testXstock])
-                        print(testXstock)
-                    while testXstock.shape[0] > before:
-                        print(testXstock)
-                        testXstock = np.delete(testXstock,0)
-                        print(testXstock)
-
-                testXstock = testXstock.reshape((1,before,-1))
-                stockHistsTestX.append(testXstock)
-
-        print(f"[INFO] Rehaping Testset.")
-        print(f"test stock shape after reshape: {stockHistsTestX[0].shape}")
-
-        testX = stackTransposeSwap(stockHistsTestX)
-        print(f"total shape after change test: {testX.shape}")
-
-        if NEW_MODEL:
-            bestModel = tf.keras.models.load_model(checkpointPath)
-        else:
-            bestModel = tf.keras.models.load_model(previousSavePath)
-
-        print(f"[INFO] Making Prediction.")
-        prediction = bestModel.predict(testX)
-
-        print(f"\nprediction for {predictDate}: {prediction[0][0]}\n")
+        PredictOnDate()
 
 main()
