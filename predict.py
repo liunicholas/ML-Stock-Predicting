@@ -49,6 +49,7 @@ shortList = ["AAPL", "MSFT", "AMZN", "FB", "GOOGL",
 
 #set QUICK_RUN to true for quick testing
 #set PREDICT_ON_DATE to true and OVERRIDE to true for just predicting a date
+#remove NaN and prepocess while getting data
 
 #dates for training and testing range
 trainStart = "2018-12-21"
@@ -66,7 +67,7 @@ daysAhead = 1                  #total days predicting in future
 expectedTrain = 267            #find with test run
 expectedTest = 224             #find with test run
 
-QUICK_RUN = False              #for just testing code
+QUICK_RUN = True              #for just testing code
 
 TRAIN = True
 TRAIN_EPOCHS = 10
@@ -148,6 +149,10 @@ def getXnumpy(hist):
     #to get columns
     histNP = np.transpose(histNP)
     high = histNP[OHLC]
+    high = removeNaNall(high)
+
+    pt = preprocessing.PowerTransformer()
+    high = pt.fit_transform([high])
 
     X = []
     #uses daysBefore previous days
@@ -163,6 +168,10 @@ def getXnumpyPredict(hist):
     #to get columns
     histNP = np.transpose(histNP)
     high = histNP[OHLC]
+    high = removeNaNall(high)
+
+    pt = preprocessing.PowerTransformer()
+    high = pt.fit_transform(high)
 
     X = np.array([high])
 
@@ -201,6 +210,20 @@ def removeNaN(stockArray):
                 stockArray[rowIndex][i] = avg
 
     return stockArray
+#locate and remove NaN in 1 dimensional numpy array
+def removeNaNall(array):
+    for i in range(array.shape[0]):
+        if np.isnan(array[i]):
+            print("NaN Found")
+            if i==0:
+                array[i] = array[i+1]
+                continue
+            if i==array.shape[0]-1:
+                array[i] = array[i-1]
+                continue
+            array[i] = (array[i+1] + array[i-1]) / 2
+
+    return array
 #same as above but for single column of data
 def removeNaNsingleColumn(stockArray):
     sum = 0
@@ -485,8 +508,10 @@ def loadData():
         print(f"[INFO] Loading Dataset For {stock}.")
         train = getData(f"{stock}", trainStart, trainEnd)
         test = getData(f"{stock}", testStart, testEnd)
-        train = removeNaN(getXnumpy(train))
-        test = removeNaN(getXnumpy(test))
+        train = getXnumpy(train)
+        test = getXnumpy(test)
+        # train = removeNaN(getXnumpy(train))
+        # test = removeNaN(getXnumpy(test))
         trainXstock = np.transpose(train)
         testXstock = np.transpose(test)
         print(f"train stock shape: {trainXstock.shape}")
@@ -624,7 +649,7 @@ def PredictOnDate():
             print(f"test stock shape: {testXstock.shape}")
 
             #remove NaN from dataset
-            testXstock = removeNaNsingleColumn(testXstock)
+            # testXstock = removeNaNsingleColumn(testXstock)
 
             #adds or removes rows as needed
             if testXstock.shape[0] != daysBefore:
