@@ -33,6 +33,7 @@ import os
 #STUFF TO DO
 #natural log of dataset UPDATE: terrible idea
 #work on preprocessing on lines 517 to 521
+#normalization doesn't detect changes
 #gpu get cuda 11
 
 print('[INFO] Done importing packages.')
@@ -68,7 +69,7 @@ daysAhead = 1                  #total days predicting in future
 expectedTrain = 267            #find with test run
 expectedTest = 224             #find with test run
 
-QUICK_RUN = False              #for just testing code
+QUICK_RUN = True              #for just testing code
 
 TRAIN = True
 TRAIN_EPOCHS = 10
@@ -515,9 +516,9 @@ def loadData():
         test = getData(f"{stock}", testStart, testEnd)
         train = getXnumpy(train)
         test = getXnumpy(test)
-        if train.shape[0] != 0 and test.shape[0] != 0:
-            train = preprocessing.normalize(train)
-            test = preprocessing.normalize(test)
+        # if train.shape[0] != 0 and test.shape[0] != 0:
+        #     train = preprocessing.normalize(train)
+        #     test = preprocessing.normalize(test)
         # train = removeNaN(getXnumpy(train))
         # test = removeNaN(getXnumpy(test))
         trainXstock = np.transpose(train)
