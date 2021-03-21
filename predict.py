@@ -32,6 +32,7 @@ import os
 
 #STUFF TO DO
 #natural log of dataset UPDATE: terrible idea
+#work on preprocessing on lines 517 to 521
 #gpu get cuda 11
 
 print('[INFO] Done importing packages.')
@@ -67,7 +68,7 @@ daysAhead = 1                  #total days predicting in future
 expectedTrain = 267            #find with test run
 expectedTest = 224             #find with test run
 
-QUICK_RUN = True              #for just testing code
+QUICK_RUN = False              #for just testing code
 
 TRAIN = True
 TRAIN_EPOCHS = 10
@@ -148,16 +149,18 @@ def getXnumpy(hist):
     histNP = hist.to_numpy()
     #to get columns
     histNP = np.transpose(histNP)
-    high = histNP[OHLC]
-    high = removeNaNall(high)
+    OHLCcolumn = histNP[OHLC]
+    OHLCcolumn = removeNaNall(OHLCcolumn)
 
-    pt = preprocessing.PowerTransformer()
-    high = pt.fit_transform([high])
+    # OHLCcolumn = preprocessing.normalize(OHLCcolumn)
+
+    # pt = preprocessing.PowerTransformer()
+    # OHLCcolumn = pt.fit_transform([OHLCcolumn])
 
     X = []
     #uses daysBefore previous days
-    for x in range(len(high)-daysBefore-daysAhead+1):
-        X.append(high[x:x+daysBefore])
+    for x in range(len(OHLCcolumn)-daysBefore-daysAhead+1):
+        X.append(OHLCcolumn[x:x+daysBefore])
 
     X = np.array(X)
 
@@ -167,13 +170,13 @@ def getXnumpyPredict(hist):
     histNP = hist.to_numpy()
     #to get columns
     histNP = np.transpose(histNP)
-    high = histNP[OHLC]
-    high = removeNaNall(high)
+    OHLCcolumn = histNP[OHLC]
+    OHLCcolumn = removeNaNall(OHLCcolumn)
 
-    pt = preprocessing.PowerTransformer()
-    high = pt.fit_transform(high)
+    # pt = preprocessing.PowerTransformer()
+    # OHLCcolumn = pt.fit_transform(OHLCcolumn)
 
-    X = np.array([high])
+    X = np.array([OHLCcolumn])
 
     return X
 #get a formatted dataset of OHLC of index as numpy array
@@ -181,12 +184,12 @@ def getYnumpy(hist):
     histNP = hist.to_numpy()
     #to get columns
     histNP = np.transpose(histNP)
-    high = histNP[OHLC]
+    OHLCcolumn = histNP[OHLC]
 
     Y = []
     #target is daysBefore+1
-    for y in range(len(high)-daysBefore-daysAhead+1):
-        Y.append(high[y+daysBefore+daysAhead-1])
+    for y in range(len(OHLCcolumn)-daysBefore-daysAhead+1):
+        Y.append(OHLCcolumn[y+daysBefore+daysAhead-1])
 
     Y = np.array(Y)
     Y = Y.flatten()
@@ -213,6 +216,7 @@ def removeNaN(stockArray):
 #locate and remove NaN in 1 dimensional numpy array
 def removeNaNall(array):
     for i in range(array.shape[0]):
+        # print(array.shape[0])
         if np.isnan(array[i]):
             print("NaN Found")
             if i==0:
@@ -504,16 +508,26 @@ def loadData():
 
     stockHistsTrainX = []
     stockHistsTestX = []
+    # pt = preprocessing.PowerTransformer()
     for stock in INDEX_STOCKS:
         print(f"[INFO] Loading Dataset For {stock}.")
         train = getData(f"{stock}", trainStart, trainEnd)
         test = getData(f"{stock}", testStart, testEnd)
         train = getXnumpy(train)
         test = getXnumpy(test)
+        if train.shape[0] != 0 and test.shape[0] != 0:
+            train = preprocessing.normalize(train)
+            test = preprocessing.normalize(test)
         # train = removeNaN(getXnumpy(train))
         # test = removeNaN(getXnumpy(test))
         trainXstock = np.transpose(train)
+        print(trainXstock)
         testXstock = np.transpose(test)
+
+        #error with diviison by zero
+        # trainXstock = pt.fit_transform(trainXstock)
+        # testXstock = pt.fit_transform(testXstock)
+
         print(f"train stock shape: {trainXstock.shape}")
         print(f"test stock shape: {testXstock.shape}")
 
@@ -542,6 +556,10 @@ def loadData():
 
     trainX = stackTransposeSwap(stockHistsTrainX)
     testX = stackTransposeSwap(stockHistsTestX)
+
+    # pt = preprocessing.PowerTransformer()
+    # trainX = pt.fit_transform(trainX)
+    # testX = pt.fit_transform(testX)
 
     print(f"total shape after change train: {trainX.shape}")
     print(f"total shape after change test: {testX.shape}")
@@ -645,7 +663,9 @@ def PredictOnDate():
         if " " + stock + " " in stocksIncluded:
             print(f"[INFO] Loading Testset For {stock}.")
             test = getData(f"{stock}", predictStart, predictEnd)
-            testXstock = np.transpose(getXnumpyPredict(test))
+            test = getXnumpyPredict(test)
+            test = preprocessing.normalize(test)
+            testXstock = np.transpose(test)
             print(f"test stock shape: {testXstock.shape}")
 
             #remove NaN from dataset
@@ -663,6 +683,9 @@ def PredictOnDate():
 
     testX = stackTransposeSwap(stockHistsTestX)
     print(f"total shape after change test: {testX.shape}")
+
+    # pt = preprocessing.PowerTransformer()
+    # testX = pt.fit_transform(testX)
 
     # testX = np.log(testX)
 
