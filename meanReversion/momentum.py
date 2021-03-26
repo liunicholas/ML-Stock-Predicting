@@ -23,35 +23,16 @@ from yfinance import *
 from datetime import *
 import os
 
-#TODO: make gpu work??
-# devices = tf.config.list_physical_devices('GPU')
-# if len(devices) > 0:
-#     print('[INFO] GPU is detected.')
-# else:
-#     print('[INFO] GPU not detected.')
-
-#STUFF TO DO
-#natural log of dataset UPDATE: terrible idea
-#work on preprocessing on lines 517 to 521
-#normalization doesn't detect changes
-#gpu get cuda 11
-
 print('[INFO] Done importing packages.')
 
-#the 9 federally recognized holidays
 holidays2021 = ["2021-01-01", "2021-01-18", "2021-02-15",
     "2021-04-02", "2021-05-31", "2021-07-05",
     "2021-09-06", "2021-11-25", "2021-12-25"]
 
-#focusing on SPDR S&P 500 ETF
-INDEX = "SPY"
-indexSource = "https://en.wikipedia.org/wiki/List_of_S%26P_500_companies"
-shortList = ["AAPL", "MSFT", "AMZN", "FB", "GOOGL",
-    "GOOG", "TSLA", "BRK.B", "JPM", "JNJ"]
+STOCK = "TSLA"
 
 #set QUICK_RUN to true for quick testing
 #set PREDICT_ON_DATE to true and OVERRIDE to true for just predicting a date
-#remove NaN and prepocess while getting data
 
 #dates for training and testing range
 trainStart = "2018-12-21"
@@ -61,11 +42,9 @@ testStart = "2020-03-20"
 testEnd = "2021-3-11"
 
 LOAD_DATASET = True           #set to false when testing architecture
-USE_ALL_STOCKS = True         #set to false for just testing
 OHLC = 1                      #open = 0, high = 1, low = 2, close = 3
 
-daysBefore = 21                #total days in period for prediction
-daysAhead = 1                  #total days predicting in future
+interval = 10                  #interval to find momentum
 expectedTrain = 267            #find with test run
 expectedTest = 224             #find with test run
 
@@ -87,12 +66,9 @@ predictDate = "2021-03-17"
 savedModelName = "5_1_mk1"
 
 graphPath = "./info/pyplots/newestPlot.png"                  #save mpl graph
-dataPath = "./info/datasets/allSpy.npy"                      #save npy arrays
 checkpointPath = "./info/checkpoints"                        #save models
-stocksIncludedPath = "./info/datasets/stocksIncluded.txt"    #save list of stocks used
 savedModelsPath = "./savedModels"                            #save best model
 previousSavePath = f"{savedModelsPath}/{savedModelName}/"    #location of desired model for predicting
-previousStocksIncludedPath = f"{savedModelsPath}/{savedModelName}/stocksIncluded.txt"
 
 #overides load, train, test, when predicting
 def setModes():
@@ -130,14 +106,6 @@ def setCustomCallback():
         mode='min',
         save_best_only=True)
 
-#get the tickers of stocks that SPY tracks
-def getTickers():
-    table=pd.read_html(f'{indexSource}')
-    df = table[0]
-    dfNP = df.to_numpy()
-    dfNP = np.transpose(dfNP)
-
-    return dfNP[0]
 #get pandas dataframe of a stock
 def getData(stockName, startDate, endDate):
     stock = Ticker(stockName)
@@ -151,33 +119,13 @@ def getXnumpy(hist):
     #to get columns
     histNP = np.transpose(histNP)
     OHLCcolumn = histNP[OHLC]
-    OHLCcolumn = removeNaNall(OHLCcolumn)
+    OHLCcolumn = removeNaN(OHLCcolumn)
 
-    # OHLCcolumn = preprocessing.normalize(OHLCcolumn)
+    lastIndex = OHLCcolumn.shape[0]-interval-1
 
-    # pt = preprocessing.PowerTransformer()
-    # OHLCcolumn = pt.fit_transform([OHLCcolumn])
+    X = np.array(OHLCcolumn[:lastIndex])
 
-    X = []
-    #uses daysBefore previous days
-    for x in range(len(OHLCcolumn)-daysBefore-daysAhead+1):
-        X.append(OHLCcolumn[x:x+daysBefore])
-
-    X = np.array(X)
-
-    return X
-#get a formatted dataset of OHLC of stock as numpy array
-def getXnumpyPredict(hist):
-    histNP = hist.to_numpy()
-    #to get columns
-    histNP = np.transpose(histNP)
-    OHLCcolumn = histNP[OHLC]
-    OHLCcolumn = removeNaNall(OHLCcolumn)
-
-    # pt = preprocessing.PowerTransformer()
-    # OHLCcolumn = pt.fit_transform(OHLCcolumn)
-
-    X = np.array([OHLCcolumn])
+    get difference with interval
 
     return X
 #get a formatted dataset of OHLC of index as numpy array
@@ -186,36 +134,18 @@ def getYnumpy(hist):
     #to get columns
     histNP = np.transpose(histNP)
     OHLCcolumn = histNP[OHLC]
+    OHLCcolumn = removeNaN(OHLCcolumn)
 
-    Y = []
-    #target is daysBefore+1
-    for y in range(len(OHLCcolumn)-daysBefore-daysAhead+1):
-        Y.append(OHLCcolumn[y+daysBefore+daysAhead-1])
+    lastIndex = OHLCcolumn.shape[0]-interval-1
 
-    Y = np.array(Y)
-    Y = Y.flatten()
+    Y = np.array(OHLCcolumn[:lastIndex]
+
+    get the differences between dates
 
     return Y
 
-#locate and replace NaN in numpy array
-def removeNaN(stockArray):
-    for rowIndex in range(stockArray.shape[0]):
-        sum = 0
-        counter = 0
-        for val in stockArray[rowIndex]:
-            if not np.isnan(val):
-                sum += val
-                counter += 1
-        avg = sum/counter
-
-        for i in range(stockArray[rowIndex].shape[0]):
-            if np.isnan(stockArray[rowIndex][i]):
-                print("NaN Found")
-                stockArray[rowIndex][i] = avg
-
-    return stockArray
 #locate and remove NaN in 1 dimensional numpy array
-def removeNaNall(array):
+def removeNaN(array):
     for i in range(array.shape[0]):
         # print(array.shape[0])
         if np.isnan(array[i]):
@@ -229,22 +159,6 @@ def removeNaNall(array):
             array[i] = (array[i+1] + array[i-1]) / 2
 
     return array
-#same as above but for single column of data
-def removeNaNsingleColumn(stockArray):
-    sum = 0
-    counter = 0
-    for val in stockArray:
-        if not np.isnan(val[0]):
-            sum += val[0]
-            counter += 1
-    avg = sum/counter
-
-    for index in range(stockArray.shape[0]):
-        if np.isnan(stockArray[index][0]):
-            print("NaN Found")
-            stockArray[index][0] = avg
-
-    return stockArray
 #adds or removes data as necessary to fit expected train and test values
 def fixData(stockArray, expectedVal):
     stockArray = np.transpose(stockArray)
@@ -295,36 +209,6 @@ def generator(batchSize, x, y):
                 index=0
         yield np.array(batchX), np.array(batchY)
 
-#save numpy arrays to npy file
-def saveDataSet(dataPath, trainX, trainY, testX, testY):
-    with open(dataPath, 'wb') as f:
-        np.save(f, trainX)
-        np.save(f, trainY)
-        np.save(f, testX)
-        np.save(f, testY)
-#loads numpy arrays from npy file
-def loadDataSet(dataPath):
-    with open(dataPath, 'rb') as f:
-        trainX = np.load(f)
-        trainY = np.load(f)
-        testX = np.load(f)
-        testY =  np.load(f)
-
-    return trainX, trainY, testX, testY
-
-#read contents of text file
-def readFile(filePath):
-    f = open(filePath, 'r')
-    contents = f.read()
-    f.close()
-
-    return contents
-#write contents to text file
-def writeFile(filePath, contents):
-    f = open(filePath, 'w')
-    f.write(contents)
-    f.close()
-
 #displays prediction with date followed by prediction
 def displayPredictionsAsText(histTestIndex, predictions):
     counter = 0
@@ -369,11 +253,6 @@ def savePyPlot(newFolderPath, version, histTestIndex, testY, predictions):
     print("[INFO] Saving Pyplot.")
     fig = getJustPriceGraph(histTestIndex, testY, predictions)
     plt.savefig(f"{newFolderPath}/{daysBefore}_{daysAhead}_{version}.png")
-#saves text file of included stocks to folder
-def saveIncludedStocks(newFolderPath):
-    print("[INFO] Saving Included Stocks Text File.")
-    stocksIncluded = readFile(stocksIncludedPath)
-    writeFile(f"{newFolderPath}/stocksIncluded.txt", stocksIncluded)
 #saves best model to folder
 def saveModel(newFolderPath, bestModel):
     print("[INFO] Saving Model.")
