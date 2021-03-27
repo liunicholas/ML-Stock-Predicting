@@ -25,6 +25,10 @@ import os
 
 print('[INFO] Done importing packages.')
 
+#work on getXnumpy and getYnumpy
+#work on architecture
+#work on training
+
 holidays2021 = ["2021-01-01", "2021-01-18", "2021-02-15",
     "2021-04-02", "2021-05-31", "2021-07-05",
     "2021-09-06", "2021-11-25", "2021-12-25"]
@@ -65,9 +69,8 @@ OVERRIDE = True                #overrides load, train, test, and new_model
 
 #vars for predicting
 predictDate = "2021-03-17"
-savedModelName = "5_1_mk1"
+savedModelName = ""
 
-graphPath = "./info/pyplots/newestPlot.png"                  #save mpl graph
 checkpointPath = "./info/checkpoints"                        #save models
 savedModelsPath = "./savedModels"                            #save best model
 previousSavePath = f"{savedModelsPath}/{savedModelName}/"    #location of desired model for predicting
@@ -127,10 +130,10 @@ def getXnumpy(hist):
     #uses percentage change method
     momentums = []
     for i in range(intervalMomentum-1, OHLCcolumn.shape[0]):
-        momentums.append((OHLCcolumn[i-1]/OHLCcolumn[i-intervalMomentum-1])*100)
+        momentums.append((OHLCcolumn[i-1]/OHLCcolumn[i-intervalMomentum])*100)
 
     momentumGroups = []
-    for i in range((intervalPeriod-1, len(X))):
+    for i in range((intervalPeriod-1, len(momentums))):
         momentumGroups.append(momentums[i-intervalPeriod-1]:momentums[i-1])
 
     return np.array(momentumGroups)
@@ -142,13 +145,14 @@ def getYnumpy(hist):
     OHLCcolumn = histNP[OHLC]
     OHLCcolumn = removeNaN(OHLCcolumn)
 
-    lastIndex = OHLCcolumn.shape[0]-intervalMomentum-1
+    binarizedList = []
 
-    Y = np.array(OHLCcolumn[:lastIndex]
+    for i in range(FIGURE OUT THIS RANGE):
+        difference = OHLCcolumn[i-1]-OHLCcolumn[i-intervalPeriod]
 
-    get the differences between dates
+    get the differences between dates and define classes
 
-    return Y
+    return binarizedList
 
 #locate and remove NaN in 1 dimensional numpy array
 def removeNaN(array):

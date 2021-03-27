@@ -683,7 +683,7 @@ def PredictOnDate():
         print(f"[INFO] Loading Testset For {stock}.")
         test = getData(f"{stock}", predictStart, predictEnd)
         test = getXnumpyPredict(test)
-        test = preprocessing.normalize(test)
+        # test = preprocessing.normalize(test)
         testXstock = np.transpose(test)
         print(f"test stock shape: {testXstock.shape}")
 
