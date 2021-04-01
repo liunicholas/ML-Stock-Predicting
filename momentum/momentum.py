@@ -28,6 +28,7 @@ print('[INFO] Done importing packages.')
 #work on getXnumpy and getYnumpy
 #work on architecture
 #work on training
+#change parse before and ahead to intervals
 
 holidays2021 = ["2021-01-01", "2021-01-18", "2021-02-15",
     "2021-04-02", "2021-05-31", "2021-07-05",
@@ -48,20 +49,22 @@ testEnd = "2021-3-11"
 LOAD_DATASET = True           #set to false when testing architecture
 OHLC = 1                      #open = 0, high = 1, low = 2, close = 3
 
+#intervals are total days not days before
+#add intervals and subtract 2 to get start values for data needed
 intervalMomentum = 10          #interval to find momentum
 intervalPeriod = 10            #interval to group together
 
-expectedTrain = 267            #find with test run
-expectedTest = 224             #find with test run
+# expectedTrain = 267            #find with test run
+# expectedTest = 224             #find with test run
 
-QUICK_RUN = True              #for just testing code
+QUICK_RUN = False              #for just testing code
 
-TRAIN = True
+TRAIN = False
 TRAIN_EPOCHS = 10
 BATCH_SIZE_TRAIN = 16
 BATCH_SIZE_TEST = 16
 
-TEST = True
+TEST = False
 NEW_MODEL = True              #tests on a new model
 
 PREDICT_ON_DATE = False        #set to true to predict day
@@ -71,6 +74,7 @@ OVERRIDE = True                #overrides load, train, test, and new_model
 predictDate = "2021-03-17"
 savedModelName = ""
 
+dataPath = "./info/datasets/thisStock.npy"                      #save npy arrays
 checkpointPath = "./info/checkpoints"                        #save models
 savedModelsPath = "./savedModels"                            #save best model
 previousSavePath = f"{savedModelsPath}/{savedModelName}/"    #location of desired model for predicting
@@ -129,12 +133,13 @@ def getXnumpy(hist):
     #get all the momentums over the data range
     #uses percentage change method
     momentums = []
-    for i in range(intervalMomentum-1, OHLCcolumn.shape[0]):
-        momentums.append((OHLCcolumn[i-1]/OHLCcolumn[i-intervalMomentum])*100)
+    #intervals are total days not days before
+    for i in range(intervalMomentum-1, OHLCcolumn.shape[0]-1):
+        momentums.append((OHLCcolumn[i]/OHLCcolumn[i-intervalMomentum+1])*100)
 
     momentumGroups = []
-    for i in range((intervalPeriod-1, len(momentums))):
-        momentumGroups.append(momentums[i-intervalPeriod-1]:momentums[i-1])
+    for i in range((intervalPeriod-1, len(momentums)-1)):
+        momentumGroups.append(momentums[i-intervalPeriod+1]:momentums[i+1])
 
     return np.array(momentumGroups)
 #get a formatted dataset of OHLC of target as numpy array
@@ -145,10 +150,18 @@ def getYnumpy(hist):
     OHLCcolumn = histNP[OHLC]
     OHLCcolumn = removeNaN(OHLCcolumn)
 
+    startIndex = intervalMomentum+intervalPeriod-2
     binarizedList = []
+    for i in range(startIndex, OHLCcolumn.shape[0]-1):
+        #intervals are total days not days before
+        difference = OHLCcolumn[i]-OHLCcolumn[i-intervalPeriod+1]
 
-    for i in range(FIGURE OUT THIS RANGE):
-        difference = OHLCcolumn[i-1]-OHLCcolumn[i-intervalPeriod]
+        #0 for sell, 1 for buy
+        #try with 0 for buy, 1 for hold, and 2 for sell later
+        if difference < 1:
+            binarizedList.append(0)
+        else:
+            binarizedList.append(1)
 
     get the differences between dates and define classes
 
@@ -169,42 +182,42 @@ def removeNaN(array):
             array[i] = (array[i+1] + array[i-1]) / 2
 
     return array
-#adds or removes data as necessary to fit expected train and test values
-def fixData(stockArray, expectedVal):
-    stockArray = np.transpose(stockArray)
-    while stockArray.shape[0] < expectedVal:
-        stockArray = np.vstack([stockArray[0],stockArray])
-    while stockArray.shape[0] > expectedVal:
-        stockArray = np.delete(stockArray,0,0)
-    stockArray = np.transpose(stockArray)
+# #adds or removes data as necessary to fit expected train and test values
+# def fixData(stockArray, expectedVal):
+#     stockArray = np.transpose(stockArray)
+#     while stockArray.shape[0] < expectedVal:
+#         stockArray = np.vstack([stockArray[0],stockArray])
+#     while stockArray.shape[0] > expectedVal:
+#         stockArray = np.delete(stockArray,0,0)
+#     stockArray = np.transpose(stockArray)
+#
+#     return stockArray
+# #same as above but for single column
+# def fixDataSingleColumn(stockArray, expectedVal):
+#     while stockArray.shape[0] < expectedVal:
+#         print(stockArray)
+#         stockArray = np.vstack([stockArray[0],stockArray])
+#         print(stockArray)
+#     while stockArray.shape[0] > expectedVal:
+#         print(stockArray)
+#         stockArray = np.delete(stockArray,0)
+#         print(stockArray)
+#
+#     return stockArray
+# #vstack, transpose, swaps axis 1 and 2
+# def stackTransposeSwap(stocksList):
+#     stocksCombined = np.vstack(stocksList)
+#     xSet = np.transpose(stocksCombined)
+#     xSet = np.swapaxes(xSet,1,2)
+#
+#     return xSet
 
-    return stockArray
-#same as above but for single column
-def fixDataSingleColumn(stockArray, expectedVal):
-    while stockArray.shape[0] < expectedVal:
-        print(stockArray)
-        stockArray = np.vstack([stockArray[0],stockArray])
-        print(stockArray)
-    while stockArray.shape[0] > expectedVal:
-        print(stockArray)
-        stockArray = np.delete(stockArray,0)
-        print(stockArray)
-
-    return stockArray
-#vstack, transpose, swaps axis 1 and 2
-def stackTransposeSwap(stocksList):
-    stocksCombined = np.vstack(stocksList)
-    xSet = np.transpose(stocksCombined)
-    xSet = np.swapaxes(xSet,1,2)
-
-    return xSet
-
-#get number of stocks used in dataset
-def getNumStocks(testX, trainX):
-    assert trainX.shape[1] == testX.shape[1]
-    numStocks = trainX.shape[1]
-
-    return numStocks
+# #get number of stocks used in dataset
+# def getNumStocks(testX, trainX):
+#     assert trainX.shape[1] == testX.shape[1]
+#     numStocks = trainX.shape[1]
+#
+#     return numStocks
 #won't load all data at once while training and testing
 def generator(batchSize, x, y):
     index = 0
@@ -334,7 +347,8 @@ class CNN():
 
         #Absolute for few outliers
         #squared to aggresively diminish outliers
-        self.loss = losses.MeanSquaredError()
+        # self.loss = losses.MeanSquaredError()
+        self.loss = losses.SparseCategoricalCrossentropy(from_logits=True)
         #metrics=['accuracy']
         #metrics=['mse']
         self.model.compile(loss=self.loss, optimizer=self.optimizer, metrics=["accuracy"])
@@ -349,61 +363,50 @@ class CNN():
 #load and format dataset
 def loadData():
     print("[INFO] Loading Traning and Test Datasets.")
+    print(f"[INFO] Loading Dataset For {STOCK}.")
 
-    if USE_ALL_STOCKS:
-        INDEX_STOCKS = getTickers()
-    else:
-        INDEX_STOCKS = shortList
+    train = getData(f"{STOCK}", trainStart, trainEnd)
+    test = getData(f"{STOCK}", testStart, testEnd)
+    trainX = getXnumpy(train)
+    testX = getXnumpy(test)
+    # if train.shape[0] != 0 and test.shape[0] != 0:
+    #     train = preprocessing.normalize(train)
+    #     test = preprocessing.normalize(test)
+    # train = removeNaN(getXnumpy(train))
+    # test = removeNaN(getXnumpy(test))
+    # trainXstock = np.transpose(train)
+    # print(trainXstock)
+    # testXstock = np.transpose(test)
 
-    f = open(f"{stocksIncludedPath}", 'w')
+    #error with diviison by zero
+    # trainXstock = pt.fit_transform(trainXstock)
+    # testXstock = pt.fit_transform(testXstock)
 
-    stockHistsTrainX = []
-    stockHistsTestX = []
-    # pt = preprocessing.PowerTransformer()
-    for stock in INDEX_STOCKS:
-        print(f"[INFO] Loading Dataset For {stock}.")
-        train = getData(f"{stock}", trainStart, trainEnd)
-        test = getData(f"{stock}", testStart, testEnd)
-        train = getXnumpy(train)
-        test = getXnumpy(test)
-        # if train.shape[0] != 0 and test.shape[0] != 0:
-        #     train = preprocessing.normalize(train)
-        #     test = preprocessing.normalize(test)
-        # train = removeNaN(getXnumpy(train))
-        # test = removeNaN(getXnumpy(test))
-        trainXstock = np.transpose(train)
-        print(trainXstock)
-        testXstock = np.transpose(test)
+    print(f"train stock shape: {trainX.shape}")
+    print(f"test stock shape: {testX.shape}")
 
-        #error with diviison by zero
-        # trainXstock = pt.fit_transform(trainXstock)
-        # testXstock = pt.fit_transform(testXstock)
-
-        print(f"train stock shape: {trainXstock.shape}")
-        print(f"test stock shape: {testXstock.shape}")
-
-        if trainXstock.shape[0] != 0 and testXstock.shape[0] != 0:
-            if trainXstock.shape[1] != expectedTrain or testXstock.shape[1] != expectedTest:
-                print("possible error: did not set expectedTrain and expectedTest")
-
-                trainXstock = fixData(trainXstock, expectedTrain)
-                testXstock = fixData(testXstock, expectedTest)
-
-                print("sketch fix, revised array shape below")
-                print(f"train stock shape: {trainXstock.shape}")
-                print(f"test stock shape: {testXstock.shape}")
-
-            if trainXstock.shape[1] == expectedTrain and testXstock.shape[1] == expectedTest:
-                f.write(f" {stock} ")
-                trainXstock = trainXstock.reshape((1,daysBefore,-1))
-                testXstock = testXstock.reshape((1,daysBefore,-1))
-                stockHistsTrainX.append(trainXstock)
-                stockHistsTestX.append(testXstock)
-    f.close()
+    # if trainXstock.shape[0] != 0 and testXstock.shape[0] != 0:
+    #     if trainXstock.shape[1] != expectedTrain or testXstock.shape[1] != expectedTest:
+    #         print("possible error: did not set expectedTrain and expectedTest")
+    #
+    #         trainXstock = fixData(trainXstock, expectedTrain)
+    #         testXstock = fixData(testXstock, expectedTest)
+    #
+    #         print("sketch fix, revised array shape below")
+    #         print(f"train stock shape: {trainXstock.shape}")
+    #         print(f"test stock shape: {testXstock.shape}")
+    #
+    #     if trainXstock.shape[1] == expectedTrain and testXstock.shape[1] == expectedTest:
+    #         f.write(f" {stock} ")
+    #         trainXstock = trainXstock.reshape((1,daysBefore,-1))
+    #         testXstock = testXstock.reshape((1,daysBefore,-1))
+    #         stockHistsTrainX.append(trainXstock)
+    #         stockHistsTestX.append(testXstock)
+    # f.close()
 
     print(f"[INFO] Rehaping Dataset.")
-    print(f"train stock shape after reshape: {stockHistsTrainX[0].shape}")
-    print(f"test stock shape after reshape: {stockHistsTestX[0].shape}")
+    # print(f"train stock shape after reshape: {trainX.shape}")
+    # print(f"test stock shape after reshape: {testX.shape}")
 
     # trainX = stackTransposeSwap(stockHistsTrainX)
     # testX = stackTransposeSwap(stockHistsTestX)
@@ -418,8 +421,8 @@ def loadData():
 
     #index target prices
     print("[INFO] Loading Index Data.")
-    histTrainIndex = getData(f"{INDEX}", trainStart, trainEnd)
-    histTestIndex = getData(f"{INDEX}", testStart, testEnd)
+    histTrainIndex = getData(f"{STOCK}", trainStart, trainEnd)
+    histTestIndex = getData(f"{STOCK}", testStart, testEnd)
     trainY = getYnumpy(histTrainIndex)
     testY = getYnumpy(histTestIndex)
     print(f"target shape train: {trainY.shape}")
@@ -449,6 +452,8 @@ def train():
         steps_per_epoch=len(trainX)/BATCH_SIZE_TRAIN,
         validation_steps=len(testX)/BATCH_SIZE_TEST,
         callbacks=[customCallback])
+
+    MAKE LOSS GRAPH
 
 #make predictions on old data
 def test():
