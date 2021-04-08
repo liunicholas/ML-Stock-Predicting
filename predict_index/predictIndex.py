@@ -83,7 +83,7 @@ PREDICT_ON_DATE = True        #set to true to predict day
 OVERRIDE = True                #overrides load, train, test, and new_model
 
 #vars for predicting
-predictDate = "2021-04-03"
+predictDate = "2021-04-06"
 savedModelName = "5_1_mk1"
 
 graphPath = "./info/pyplots/newestPlot.png"                  #save mpl graph

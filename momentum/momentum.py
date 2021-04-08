@@ -46,13 +46,15 @@ trainEnd = "2020-2-14"
 testStart = "2020-03-20"
 testEnd = "2021-3-11"
 
-LOAD_DATASET = True           #set to false when testing architecture
+LOAD_DATASET = True          #set to false when testing architecture
 OHLC = 1                      #open = 0, high = 1, low = 2, close = 3
 
 #intervals are total days not days before
 #add intervals and subtract 2 to get start values for data needed
 intervalMomentum = 10          #interval to find momentum
 intervalPeriod = 10            #interval to group together
+
+daysAhead = 1                  #predict days ahead
 
 # expectedTrain = 267            #find with test run
 # expectedTest = 224             #find with test run
@@ -74,7 +76,8 @@ OVERRIDE = True                #overrides load, train, test, and new_model
 predictDate = "2021-03-17"
 savedModelName = ""
 
-dataPath = "./info/datasets/thisStock.npy"                      #save npy arrays
+graphPath = "./info/pyplots/newestPlot.png"                  #save mpl graph
+dataPath = "./info/datasets/thisStock.npy"                    #save npy arrays
 checkpointPath = "./info/checkpoints"                        #save models
 savedModelsPath = "./savedModels"                            #save best model
 previousSavePath = f"{savedModelsPath}/{savedModelName}/"    #location of desired model for predicting
@@ -122,6 +125,7 @@ def getData(stockName, startDate, endDate):
 
 #get a formatted dataset of OHLC of stock x as numpy array
 def getXnumpy(hist):
+    print("[INFO] getting x hist data")
     histNP = hist.to_numpy()
     #to get columns
     histNP = np.transpose(histNP)
@@ -132,18 +136,24 @@ def getXnumpy(hist):
 
     #get all the momentums over the data range
     #uses percentage change method
+    #try subtracting method later
     momentums = []
     #intervals are total days not days before
-    for i in range(intervalMomentum-1, OHLCcolumn.shape[0]-1):
+    print("[INFO] getting momentums")
+    #algorithm correct
+    for i in range(intervalMomentum-1, OHLCcolumn.shape[0]):
         momentums.append((OHLCcolumn[i]/OHLCcolumn[i-intervalMomentum+1])*100)
 
     momentumGroups = []
-    for i in range((intervalPeriod-1, len(momentums)-1)):
-        momentumGroups.append(momentums[i-intervalPeriod+1]:momentums[i+1])
+    print("[INFO] grouping momentums")
+    #algorithm correct
+    for i in range(intervalPeriod-1, len(momentums)-daysAhead):
+        momentumGroups.append(momentums[i-intervalPeriod+1:i+1])
 
     return np.array(momentumGroups)
 #get a formatted dataset of OHLC of target as numpy array
 def getYnumpy(hist):
+    print("[INFO] getting y hist data")
     histNP = hist.to_numpy()
     #to get columns
     histNP = np.transpose(histNP)
@@ -151,10 +161,13 @@ def getYnumpy(hist):
     OHLCcolumn = removeNaN(OHLCcolumn)
 
     startIndex = intervalMomentum+intervalPeriod-2
+    # startIndex =
     binarizedList = []
-    for i in range(startIndex, OHLCcolumn.shape[0]-1):
+    print("[INFO] classifying buy and sell")
+    for i in range(startIndex, OHLCcolumn.shape[0]-daysAheads):
         #intervals are total days not days before
-        difference = OHLCcolumn[i]-OHLCcolumn[i-intervalPeriod+1]
+        # difference = OHLCcolumn[i]-OHLCcolumn[i-intervalPeriod+1]
+        difference = OHLCcolumn[i+daysAhead] - OHLCcolumn[i]
 
         #0 for sell, 1 for buy
         #try with 0 for buy, 1 for hold, and 2 for sell later
@@ -163,7 +176,7 @@ def getYnumpy(hist):
         else:
             binarizedList.append(1)
 
-    get the differences between dates and define classes
+    # get the differences between dates and define classes
 
     return binarizedList
 
@@ -212,6 +225,23 @@ def removeNaN(array):
 #
 #     return xSet
 
+#save numpy arrays to npy file
+def saveDataSet(dataPath, trainX, trainY, testX, testY):
+    with open(dataPath, 'wb') as f:
+        np.save(f, trainX)
+        np.save(f, trainY)
+        np.save(f, testX)
+        np.save(f, testY)
+#loads numpy arrays from npy file
+def loadDataSet(dataPath):
+    with open(dataPath, 'rb') as f:
+        trainX = np.load(f)
+        trainY = np.load(f)
+        testX = np.load(f)
+        testY =  np.load(f)
+
+    return trainX, trainY, testX, testY
+
 # #get number of stocks used in dataset
 # def getNumStocks(testX, trainX):
 #     assert trainX.shape[1] == testX.shape[1]
@@ -231,6 +261,22 @@ def generator(batchSize, x, y):
             else:
                 index=0
         yield np.array(batchX), np.array(batchY)
+
+#gets the mpl fig for the loss
+def getLossGraph(results, histTestIndex):
+    fig = plt.figure("preds vs real metrics", figsize=(10, 8))
+    fig.tight_layout()
+    plt1 = fig.add_subplot(111)
+    plt1.title.set_text("training and validation loss")
+    plt1.plot(np.arange(0, TRAIN_EPOCHS), results.history['loss'], color="green", label="real")
+    plt1.plot(np.arange(0, TRAIN_EPOCHS), results.history['val_loss'], color="red", label="preds")
+    plt1.legend(loc='upper right')
+
+    return fig
+#compare predictions with real
+def evalPreds(predictions, testY):
+        # do something like what we did in pytorch
+    return
 
 #ask user if they want to save the model
 def askUserSaveModel():
@@ -279,6 +325,7 @@ def saveParameters(newFolderPath, version):
     f.close()
 
 #get days before and ahead from saved model name
+#change this to parse intervals
 def parseDaysBeforeAndAhead():
     index1 = savedModelName.find("_")
     daysBefore = int(savedModelName[:index1])
@@ -313,23 +360,23 @@ class CNN():
         # Popular keyword choices: strides (default is strides=1), padding (="valid" means 0, ="same" means whatever gives same output width/height as input).  Not sure yet what to do if you want some other padding.
         # Activation function is built right into the Conv2D function as a keyword argument.
 
-        # self.model.add(layers.Conv1D(16, 3, input_shape = input_shape, activation = 'relu'))
-        # self.model.add(layers.BatchNormalization(trainable=False))
-        #
-        # # self.model.add(layers.MaxPooling2D(pool_size = 2))
-        #
-        # self.model.add(layers.Conv1D(64, 3, activation = 'relu'))
-        # self.model.add(layers.BatchNormalization(trainable=False))
-        #
+        self.model.add(layers.Conv1D(16, 3, input_shape = input_shape, activation = 'relu'))
+        self.model.add(layers.BatchNormalization(trainable=False))
+
+        # self.model.add(layers.MaxPooling2D(pool_size = 2))
+
+        self.model.add(layers.Conv1D(64, 3, activation = 'relu'))
+        self.model.add(layers.BatchNormalization(trainable=False))
+
         # self.model.add(layers.Conv1D(128, 3, activation = 'relu'))
         # self.model.add(layers.BatchNormalization(trainable=False))
         #
         # self.model.add(layers.Conv1D(256, 3, activation = 'relu'))
         # self.model.add(layers.BatchNormalization(trainable=False))
-
+        #
         # self.model.add(layers.MaxPooling2D(pool_size = 2))
 
-        # self.model.add(layers.Flatten())
+        self.model.add(layers.Flatten())
 
         # Now, we flatten to one dimension, so we go to just length 400.
         self.model.add(layers.Dense(2400, activation = 'relu', input_shape = input_shape))
@@ -412,9 +459,9 @@ def loadData():
     # testX = stackTransposeSwap(stockHistsTestX)
 
     trainX = trainX.reshape(trainX.shape[0], trainX.shape[1], 1)
-    print(trainX.shape)
+    # print(trainX.shape)
     testX = testX.reshape(testX.shape[0], testX.shape[1], 1)
-    print(testX.shape)
+    # print(testX.shape)
 
     print(f"total shape after change train: {trainX.shape}")
     print(f"total shape after change test: {testX.shape}")
@@ -425,20 +472,20 @@ def loadData():
     histTestIndex = getData(f"{STOCK}", testStart, testEnd)
     trainY = getYnumpy(histTrainIndex)
     testY = getYnumpy(histTestIndex)
-    print(f"target shape train: {trainY.shape}")
-    print(f"target shape test: {testY.shape}")
+    print(f"target shape train: {len(trainY)}")
+    print(f"target shape test: {len(testY)}")
 
     saveDataSet(dataPath, trainX, trainY, testX, testY)
 
 #train it with CNN
 def train():
-    classes = ["buy", "sell"]
+    classes = ["sell", "buy"]
     trainX, trainY, testX, testY = loadDataSet(dataPath)
 
     # trainX = np.log(trainX)
     # testX = np.log(testX)
 
-    numStocks = getNumStocks(testX, trainX)
+    # numStocks = getNumStocks(testX, trainX)
     cnn = CNN((intervalPeriod, 1))
 
     global results
@@ -453,8 +500,6 @@ def train():
         validation_steps=len(testX)/BATCH_SIZE_TEST,
         callbacks=[customCallback])
 
-    MAKE LOSS GRAPH
-
 #make predictions on old data
 def test():
     trainX, trainY, testX, testY = loadDataSet(dataPath)
@@ -467,7 +512,7 @@ def test():
     print(f"[INFO] Making Predictions.")
     predictions = bestModel.predict(testX)
 
-
+# MAKE LOSS GRAPH
 
     #ask to save model if new model
     if NEW_MODEL:
