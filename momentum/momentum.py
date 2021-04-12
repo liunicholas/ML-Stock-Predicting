@@ -40,10 +40,10 @@ STOCK = "TSLA"
 #set PREDICT_ON_DATE to true and OVERRIDE to true for just predicting a date
 
 #dates for training and testing range
-trainStart = "2018-12-21"
-trainEnd = "2020-2-14"
+trainStart = "2015-01-01"
+trainEnd = "2018-12-31"
 
-testStart = "2020-03-20"
+testStart = "2019-01-01"
 testEnd = "2021-3-11"
 
 LOAD_DATASET = True          #set to false when testing architecture
@@ -51,8 +51,8 @@ OHLC = 1                      #open = 0, high = 1, low = 2, close = 3
 
 #intervals are total days not days before
 #add intervals and subtract 2 to get start values for data needed
-intervalMomentum = 10          #interval to find momentum
-intervalPeriod = 10            #interval to group together
+intervalMomentum = 7          #interval to find momentum
+intervalPeriod = 5            #interval to group together
 
 daysAhead = 1                  #predict days ahead
 
@@ -61,8 +61,8 @@ daysAhead = 1                  #predict days ahead
 
 QUICK_RUN = False              #for just testing code
 
-TRAIN = False
-TRAIN_EPOCHS = 10
+TRAIN = True
+TRAIN_EPOCHS = 25
 BATCH_SIZE_TRAIN = 16
 BATCH_SIZE_TEST = 16
 
@@ -142,7 +142,8 @@ def getXnumpy(hist):
     print("[INFO] getting momentums")
     #algorithm correct
     for i in range(intervalMomentum-1, OHLCcolumn.shape[0]):
-        momentums.append((OHLCcolumn[i]/OHLCcolumn[i-intervalMomentum+1])*100)
+        # momentums.append((OHLCcolumn[i]/OHLCcolumn[i-intervalMomentum+1])*100)
+        momentums.append(OHLCcolumn[i]-OHLCcolumn[i-intervalMomentum+1])
 
     momentumGroups = []
     print("[INFO] grouping momentums")
@@ -164,7 +165,7 @@ def getYnumpy(hist):
     # startIndex =
     binarizedList = []
     print("[INFO] classifying buy and sell")
-    for i in range(startIndex, OHLCcolumn.shape[0]-daysAheads):
+    for i in range(startIndex, OHLCcolumn.shape[0]-daysAhead):
         #intervals are total days not days before
         # difference = OHLCcolumn[i]-OHLCcolumn[i-intervalPeriod+1]
         difference = OHLCcolumn[i+daysAhead] - OHLCcolumn[i]
