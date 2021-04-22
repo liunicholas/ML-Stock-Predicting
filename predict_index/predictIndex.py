@@ -90,10 +90,10 @@ graphPath = "./info/pyplots/newestPlot.png"                  #save mpl graph
 dataPath = "./info/datasets/allSpy.npy"                      #save npy arrays
 checkpointPath = "./info/checkpoints"                        #save models
 stocksIncludedPath = "./info/datasets/stocksIncluded.txt"    #save list of stocks used
+
 # savedModelsPath = "./savedModels"                            #save best model
 savedModelsPath = "/Volumes/transfer/indexModels"
 previousSavePath = f"{savedModelsPath}/{savedModelName}/"    #location of desired model for predicting
-previousStocksIncludedPath = f"{savedModelsPath}/{savedModelName}/stocksIncluded.txt"
 
 #overides load, train, test, when predicting
 def setModes():
@@ -653,6 +653,7 @@ def PredictOnDate():
     if NEW_MODEL:
         stocksIncluded = readFile(stocksIncludedPath)
     else:
+        previousStocksIncludedPath = f"{previousSavePath}stocksIncluded.txt"
         stocksIncluded = readFile(previousStocksIncludedPath)
 
     print("[INFO] Loading Prediction Datasets.")
