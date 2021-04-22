@@ -115,8 +115,10 @@ def setCustomCallback():
     customCallback = tf.keras.callbacks.ModelCheckpoint(
         filepath=checkpointPath,
         # save_weights_only=True,
-        monitor='accuracy',
-        mode='min',
+        monitor='val_accuracy',
+        mode='max',
+        # monitor='val_min',
+        # mode='min',
         save_best_only=True)
 
 #get pandas dataframe of a stock
@@ -317,7 +319,7 @@ def saveModel(newFolderPath, bestModel):
 #saves pyplot to folder for later analysis
 def savePyPlot(results):
     print("[INFO] Saving Pyplot.")
-    fig = getLossGraph(results))
+    fig = getLossGraph(results)
     plt.savefig(f"{newFolderPath}/{intervalMomentum}_{intervalPeriod}_{daysAhead}_{version}.png")
 #saves all info to text file
 def saveParameters(newFolderPath, version):
@@ -396,7 +398,7 @@ class CNN():
         self.model.add(layers.Dense(120, activation = 'relu'))
         self.model.add(layers.Dense(60, activation = 'relu'))
         self.model.add(layers.Dense(20, activation = 'relu'))
-        self.model.add(layers.Dense(2))
+        self.model.add(layers.Dense(2, activation = 'softmax'))
 
         #lr=0.001, momentum=0.9
         self.optimizer = optimizers.SGD(lr=0.0001)
@@ -485,7 +487,7 @@ def loadData():
     print(f"target shape train: {len(trainY)}")
     print(f"target shape test: {len(testY)}")
 
-    print(trainY)
+    # print(trainY)
 
     saveDataSet(dataPath, trainX, trainY, testX, testY)
 
