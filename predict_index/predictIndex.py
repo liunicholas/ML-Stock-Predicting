@@ -80,10 +80,10 @@ TEST = True
 NEW_MODEL = True              #tests on a new model
 
 PREDICT_ON_DATE = True        #set to true to predict day
-OVERRIDE = True                #overrides load, train, test, and new_model
+OVERRIDE = True               #overrides load, train, test, and new_model
 
 #vars for predicting
-predictDate = "2021-04-06"
+predictDate = "2021-04-26"
 savedModelName = "5_1_mk1"
 
 graphPath = "./info/pyplots/newestPlot.png"                  #save mpl graph
@@ -91,9 +91,9 @@ dataPath = "./info/datasets/allSpy.npy"                      #save npy arrays
 checkpointPath = "./info/checkpoints"                        #save models
 stocksIncludedPath = "./info/datasets/stocksIncluded.txt"    #save list of stocks used
 
-# savedModelsPath = "./savedModels"                            #save best model
-savedModelsPath = "/Volumes/transfer/indexModels"
-previousSavePath = f"{savedModelsPath}/{savedModelName}/"    #location of desired model for predicting
+savedModelsPath = "./savedModels"                            #save best model
+# savedModelsPath = "/Volumes/transfer/indexModels"
+previousSavePath = f"{savedModelsPath}/{savedModelName}"    #location of desired model for predicting
 
 #overides load, train, test, when predicting
 def setModes():
@@ -653,7 +653,7 @@ def PredictOnDate():
     if NEW_MODEL:
         stocksIncluded = readFile(stocksIncludedPath)
     else:
-        previousStocksIncludedPath = f"{previousSavePath}stocksIncluded.txt"
+        previousStocksIncludedPath = f"{previousSavePath}/stocksIncluded.txt"
         stocksIncluded = readFile(previousStocksIncludedPath)
 
     print("[INFO] Loading Prediction Datasets.")

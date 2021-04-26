@@ -64,7 +64,7 @@ daysAhead = 1                  #predict days ahead
 QUICK_RUN = False              #for just testing code
 
 TRAIN = True
-TRAIN_EPOCHS = 5
+TRAIN_EPOCHS = 100
 BATCH_SIZE_TRAIN = 16
 BATCH_SIZE_TEST = 16
 
