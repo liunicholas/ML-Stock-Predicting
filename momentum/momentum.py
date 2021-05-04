@@ -36,7 +36,7 @@ holidays2021 = ["2021-01-01", "2021-01-18", "2021-02-15",
     "2021-04-02", "2021-05-31", "2021-07-05",
     "2021-09-06", "2021-11-25", "2021-12-25"]
 
-STOCK = "TSLA"
+STOCK = "SPY"
 
 #set QUICK_RUN to true for quick testing
 #set PREDICT_ON_DATE to true and OVERRIDE to true for just predicting a date
@@ -54,7 +54,7 @@ OHLC = 1                      #open = 0, high = 1, low = 2, close = 3
 #intervals are total days not days before
 #add intervals and subtract 2 to get start values for data needed
 intervalMomentum = 10          #interval to find momentum
-intervalPeriod = 5            #interval to group together
+intervalPeriod = 20            #interval to group together
 
 daysAhead = 1                  #predict days ahead
 
@@ -64,7 +64,7 @@ daysAhead = 1                  #predict days ahead
 QUICK_RUN = False              #for just testing code
 
 TRAIN = True
-TRAIN_EPOCHS = 100
+TRAIN_EPOCHS = 50
 BATCH_SIZE_TRAIN = 16
 BATCH_SIZE_TEST = 16
 
