@@ -54,32 +54,36 @@ shortList = ["AAPL", "MSFT", "AMZN", "FB", "GOOGL",
 #remove NaN and prepocess while getting data
 
 #dates for training and testing range
-trainStart = "2018-12-21"
-trainEnd = "2020-2-14"
+trainStart = "2018-1-1"
+trainEnd = "2019-12-31"
 
-testStart = "2020-03-20"
-testEnd = "2021-3-11"
+testStart = "2020-1-1"
+testEnd = "2020-12-31"
+
+holdoutStart = "2021-1-1"
+holdoutEnd = "2021-5-4"
 
 LOAD_DATASET = True           #set to false when testing architecture
-USE_ALL_STOCKS = True         #set to false for just testing
+USE_ALL_STOCKS = False         #set to false for just testing
 OHLC = 1                      #open = 0, high = 1, low = 2, close = 3
 
-daysBefore = 21                #total days in period for prediction
-daysAhead = 1                  #total days predicting in future
-expectedTrain = 267            #find with test run
-expectedTest = 224             #find with test run
+daysBefore = 10                #total days in period for prediction
+daysAhead = 10                  #total days predicting in future
+expectedTrain = 483            #find with test run
+expectedTest = 233             #find with test run
+expectedHoldout = 64            #find with test run
 
 QUICK_RUN = False              #for just testing code
 
 TRAIN = True
 TRAIN_EPOCHS = 10
-BATCH_SIZE_TRAIN = 16
-BATCH_SIZE_TEST = 16
+BATCH_SIZE_TRAIN = 4
+BATCH_SIZE_TEST = 4
 
 TEST = True
 NEW_MODEL = True              #tests on a new model
 
-PREDICT_ON_DATE = True        #set to true to predict day
+PREDICT_ON_DATE = False        #set to true to predict day
 OVERRIDE = True               #overrides load, train, test, and new_model
 
 #vars for predicting
@@ -277,8 +281,8 @@ def stackTransposeSwap(stocksList):
     return xSet
 
 #get number of stocks used in dataset
-def getNumStocks(testX, trainX):
-    assert trainX.shape[1] == testX.shape[1]
+def getNumStocks(testX, trainX, holdoutX):
+    assert trainX.shape[1] == testX.shape[1] and trainX.shape[1] == holdoutX.shape[1]
     numStocks = trainX.shape[1]
 
     return numStocks
@@ -297,21 +301,25 @@ def generator(batchSize, x, y):
         yield np.array(batchX), np.array(batchY)
 
 #save numpy arrays to npy file
-def saveDataSet(dataPath, trainX, trainY, testX, testY):
+def saveDataSet(dataPath, trainX, trainY, testX, testY, holdoutX, holdoutY):
     with open(dataPath, 'wb') as f:
         np.save(f, trainX)
         np.save(f, trainY)
         np.save(f, testX)
         np.save(f, testY)
+        np.save(f, holdoutX)
+        np.save(f, holdoutY)
 #loads numpy arrays from npy file
 def loadDataSet(dataPath):
     with open(dataPath, 'rb') as f:
         trainX = np.load(f)
         trainY = np.load(f)
         testX = np.load(f)
-        testY =  np.load(f)
+        testY = np.load(f)
+        holdoutX = np.load(f)
+        holdoutY = np.load(f)
 
-    return trainX, trainY, testX, testY
+    return trainX, trainY, testX, testY, holdoutX, holdoutY
 
 #read contents of text file
 def readFile(filePath):
@@ -326,11 +334,13 @@ def writeFile(filePath, contents):
     f.write(contents)
     f.close()
 
-#displays prediction with date followed by prediction
-def displayPredictionsAsText(histTestIndex, predictions):
+#displays prediction with  date followed by prediction
+def displayPredictionsAsText(histIndex, predictions):
+    histIndex.index = histIndex.index.date
+
     counter = 0
-    for date in histTestIndex.index:
-        print(f"{date}: {predictions[counter]}")
+    for date in histIndex.index:
+        print(f"{date}: {round(predictions[counter][0],2)}")
         counter+=1
 
 #ask user if they want to save the model
@@ -366,9 +376,9 @@ def makeNewFolder(version):
 
     return newFolderPath
 #saves pyplot to folder for later analysis
-def savePyPlot(newFolderPath, version, histTestIndex, testY, predictions):
+def savePyPlot(newFolderPath, version, holdoutItems, testItems):
     print("[INFO] Saving Pyplot.")
-    fig = getJustPriceGraph(histTestIndex, testY, predictions)
+    fig = getJustPriceGraph(holdoutItems, testItems)
     plt.savefig(f"{newFolderPath}/{daysBefore}_{daysAhead}_{version}.png")
 #saves text file of included stocks to folder
 def saveIncludedStocks(newFolderPath):
@@ -386,32 +396,51 @@ def saveParameters(newFolderPath, version, numStocks):
     f.write(f"version name: {daysBefore}_{daysAhead}_{version}\n")
     f.write(f"training dates: {trainStart} to {trainEnd}\n")
     f.write(f"testing dates: {testStart} to {testEnd}\n")
+    f.write(f"holdout dates: {holdoutStart} to {holdoutEnd}\n")
     f.write(f"days before: {daysBefore} days ahead: {daysAhead} \n")
     f.write(f"number of stocks included: {numStocks}\n")
     f.close()
 
 #get loss and price graph
-def getLossAndPriceGraph(results, histTestIndex, testY, predictions):
-    fig = plt.figure("preds vs real high price", figsize=(10, 8))
+def getLossAndPriceGraph(results, holdoutItems, testItems, trainItems):
+    fig = plt.figure("preds vs real high price", figsize=(15, 8))
     fig.tight_layout()
-    plt1 = fig.add_subplot(211)
+    #training and validation loss
+    plt1 = fig.add_subplot(221)
     plt1.title.set_text("training and validation loss")
     plt1.plot(np.arange(0, TRAIN_EPOCHS), results.history['loss'], color="green", label="real")
     plt1.plot(np.arange(0, TRAIN_EPOCHS), results.history['val_loss'], color="red", label="preds")
     plt1.legend(loc='upper right')
-    plt2 = fig.add_subplot(212)
-    plt2.plot(histTestIndex.index, testY, color="blue", label="real")
-    plt2.plot(histTestIndex.index, predictions, color="red", label="preds")
+    #training set
+    plt2 = fig.add_subplot(222)
+    plt2.plot(trainItems[0], trainItems[1], color="blue", label="real train")
+    plt2.plot(trainItems[0], trainItems[2], color="red", label="preds train")
     plt2.legend(loc='upper left')
+    #validation set
+    plt3 = fig.add_subplot(223)
+    plt3.plot(testItems[0], testItems[1], color="blue", label="real test")
+    plt3.plot(testItems[0], testItems[2], color="red", label="preds test")
+    plt3.legend(loc='upper left')
+    #holdout set
+    plt4 = fig.add_subplot(224)
+    plt4.plot(holdoutItems[0], holdoutItems[1], color="blue", label="real holdout")
+    plt4.plot(holdoutItems[0], holdoutItems[2], color="red", label="preds holdout")
+    plt4.legend(loc='upper left')
 
     return fig
 #get real vs preds price graph
-def getJustPriceGraph(histTestIndex, testY, predictions):
-    fig = plt.figure("preds vs real high price", figsize=(10, 4))
+def getJustPriceGraph(holdoutItems, testItems):
+    fig = plt.figure("preds vs real high price", figsize=(10, 8))
     fig.tight_layout()
-    plt2 = fig.add_subplot(111)
-    plt2.plot(histTestIndex.index, testY, color="blue", label="real")
-    plt2.plot(histTestIndex.index, predictions, color="red", label="preds")
+    #validation set
+    plt1 = fig.add_subplot(211)
+    plt1.plot(testItems[0], testItems[1], color="blue", label="real test")
+    plt1.plot(testItems[0], testItems[2], color="red", label="preds test")
+    plt1.legend(loc='upper left')
+    #holdout set
+    plt2 = fig.add_subplot(212)
+    plt2.plot(holdoutItems[0], holdoutItems[1], color="blue", label="real holdout")
+    plt2.plot(holdoutItems[0], holdoutItems[2], color="red", label="preds holdout")
     plt2.legend(loc='upper left')
 
     return fig
@@ -501,8 +530,10 @@ class CNN():
 def loadData():
     print("[INFO] Loading Traning and Test Datasets.")
 
+    #uses all 500+ stocks in the index
     if USE_ALL_STOCKS:
         INDEX_STOCKS = getTickers()
+    #uses just 10 stocks for faster testing
     else:
         INDEX_STOCKS = shortList
 
@@ -510,21 +541,29 @@ def loadData():
 
     stockHistsTrainX = []
     stockHistsTestX = []
-    # pt = preprocessing.PowerTransformer()
+    stockHistsHoldoutX = []
+
     for stock in INDEX_STOCKS:
         print(f"[INFO] Loading Dataset For {stock}.")
         train = getData(f"{stock}", trainStart, trainEnd)
         test = getData(f"{stock}", testStart, testEnd)
+        holdout = getData(f"{stock}", holdoutStart, holdoutEnd)
+
+        #converts the hist data into formatted numpy array
+        #this is where most of the data shaping happens
         train = getXnumpy(train)
         test = getXnumpy(test)
+        holdout = getXnumpy(holdout)
+
         # if train.shape[0] != 0 and test.shape[0] != 0:
         #     train = preprocessing.normalize(train)
         #     test = preprocessing.normalize(test)
         # train = removeNaN(getXnumpy(train))
         # test = removeNaN(getXnumpy(test))
+
         trainXstock = np.transpose(train)
-        print(trainXstock)
         testXstock = np.transpose(test)
+        holdoutXstock = np.transpose(holdout)
 
         #error with diviison by zero
         # trainXstock = pt.fit_transform(trainXstock)
@@ -532,59 +571,81 @@ def loadData():
 
         print(f"train stock shape: {trainXstock.shape}")
         print(f"test stock shape: {testXstock.shape}")
+        print(f"holdout stock shape: {holdoutXstock.shape}")
 
-        if trainXstock.shape[0] != 0 and testXstock.shape[0] != 0:
-            if trainXstock.shape[1] != expectedTrain or testXstock.shape[1] != expectedTest:
-                print("possible error: did not set expectedTrain and expectedTest")
+        print(f"[INFO] Checking stock validity.")
+        #will only attempt to add stock to the array if it exists
+        if trainXstock.shape[0] != 0 and testXstock.shape[0] != 0 and holdoutXstock.shape[0] != 0:
+            if trainXstock.shape[1] != expectedTrain or testXstock.shape[1] != expectedTest or holdoutXstock.shape[1] != expectedHoldout:
+                print("[Error] Possibly did not set expectedTrain and expectedTest")
 
+                #fix data to match expected shapes
                 trainXstock = fixData(trainXstock, expectedTrain)
                 testXstock = fixData(testXstock, expectedTest)
+                holdoutXstock = fixData(holdoutXstock, expectedHoldout)
 
-                print("sketch fix, revised array shape below")
+                print("[INFO] Sketch fix, revised array shape below")
                 print(f"train stock shape: {trainXstock.shape}")
                 print(f"test stock shape: {testXstock.shape}")
+                print(f"holdout stock shape: {holdoutXstock.shape}")
 
-            if trainXstock.shape[1] == expectedTrain and testXstock.shape[1] == expectedTest:
+            if trainXstock.shape[1] == expectedTrain and testXstock.shape[1] == expectedTest and holdoutXstock.shape[1] == expectedHoldout:
+                print(f"[INFO] Stock valid.")
+                #write stock name to list of included stocks
                 f.write(f" {stock} ")
+
+                #reshape stock for easier combination later
                 trainXstock = trainXstock.reshape((1,daysBefore,-1))
                 testXstock = testXstock.reshape((1,daysBefore,-1))
+                holdoutXstock = holdoutXstock.reshape((1,daysBefore,-1))
+
+                #add individual stock to array of total stocks in index
                 stockHistsTrainX.append(trainXstock)
                 stockHistsTestX.append(testXstock)
+                stockHistsHoldoutX.append(holdoutXstock)
+
+        else:
+            print(f"[Error] Stock invalid.")
+
     f.close()
 
     print(f"[INFO] Rehaping Dataset.")
-    print(f"train stock shape after reshape: {stockHistsTrainX[0].shape}")
-    print(f"test stock shape after reshape: {stockHistsTestX[0].shape}")
-
+    # print(f"train stock shape after reshape: {stockHistsTrainX[0].shape}")
+    # print(f"test stock shape after reshape: {stockHistsTestX[0].shape}")
     trainX = stackTransposeSwap(stockHistsTrainX)
     testX = stackTransposeSwap(stockHistsTestX)
+    holdoutX = stackTransposeSwap(stockHistsHoldoutX)
 
     # pt = preprocessing.PowerTransformer()
     # trainX = pt.fit_transform(trainX)
     # testX = pt.fit_transform(testX)
 
-    print(f"total shape after change train: {trainX.shape}")
-    print(f"total shape after change test: {testX.shape}")
+    print(f"total trainX shape after reshape: {trainX.shape}")
+    print(f"total testX shape after reshape: {testX.shape}")
+    print(f"total holdoutX shape after reshape: {holdoutX.shape}")
 
     #index target prices
     print("[INFO] Loading Index Data.")
     histTrainIndex = getData(f"{INDEX}", trainStart, trainEnd)
     histTestIndex = getData(f"{INDEX}", testStart, testEnd)
+    histHoldoutIndex = getData(f"{INDEX}", holdoutStart, holdoutEnd)
     trainY = getYnumpy(histTrainIndex)
     testY = getYnumpy(histTestIndex)
+    holdoutY = getYnumpy(histHoldoutIndex)
     print(f"target shape train: {trainY.shape}")
     print(f"target shape test: {testY.shape}")
+    print(f"target shape holdout: {holdoutY.shape}")
 
-    saveDataSet(dataPath, trainX, trainY, testX, testY)
+    saveDataSet(dataPath, trainX, trainY, testX, testY, holdoutX, holdoutY)
 
-#train it with CNN
+#train model with CNN
 def train():
-    trainX, trainY, testX, testY = loadDataSet(dataPath)
+    trainX, trainY, testX, testY, holdoutX, holdoutY = loadDataSet(dataPath)
 
     # trainX = np.log(trainX)
     # testX = np.log(testX)
 
-    numStocks = getNumStocks(testX, trainX)
+    numStocks = getNumStocks(testX, trainX, holdoutX)
     cnn = CNN((numStocks, daysBefore))
 
     global results
@@ -601,29 +662,47 @@ def train():
 
 #make predictions on old data
 def test():
-    trainX, trainY, testX, testY = loadDataSet(dataPath)
+    trainX, trainY, testX, testY, holdoutX, holdoutY = loadDataSet(dataPath)
 
     # trainX = np.log(trainX)
     # testX = np.log(testX)
 
-    histTestIndex = getData(f"{INDEX}", testStart, testEnd)
-    histTestIndex = histTestIndex.iloc[daysBefore+daysAhead-1:]
+    #test the model on the holdout set
+    histHoldoutIndex = getData(f"{INDEX}", holdoutStart, holdoutEnd)
+    histHoldoutIndex = histHoldoutIndex.iloc[daysBefore+daysAhead-1:].index
 
+    #as well as the test set
+    histTestIndex = getData(f"{INDEX}", testStart, testEnd)
+    histTestIndex = histTestIndex.iloc[daysBefore+daysAhead-1:].index
+
+    #as well as the validation set
+    histTrainIndex = getData(f"{INDEX}", trainStart, trainEnd)
+    histTrainIndex = histTrainIndex.iloc[daysBefore+daysAhead-1:].index
+
+    #for testing on a new model
     if NEW_MODEL:
         bestModel = tf.keras.models.load_model(checkpointPath)
+    #for testing on a previously saved model
     else:
         bestModel = tf.keras.models.load_model(previousSavePath)
 
     print(f"[INFO] Making Predictions.")
-    predictions = bestModel.predict(testX)
-    displayPredictionsAsText(histTestIndex, predictions)
+    holdoutPredictions = bestModel.predict(holdoutX)
+    testPredictions = bestModel.predict(testX)
+    trainPredictions = bestModel.predict(trainX)
+
+    # displayPredictionsAsText(histHoldoutIndex, predictions)
+
+    holdoutItems = [histHoldoutIndex, holdoutY, holdoutPredictions]
+    testItems = [histTestIndex, testY, testPredictions]
+    trainItems = [histTrainIndex, trainY, trainPredictions]
 
     if TRAIN:
-        fig = getLossAndPriceGraph(results, histTestIndex, testY, predictions)
+        fig = getLossAndPriceGraph(results, holdoutItems, testItems, trainItems)
         plt.savefig(graphPath)
         plt.show()
     else:
-        fig = getJustPriceGraph(histTestIndex, testY, predictions)
+        fig = getJustPriceGraph(holdoutItems, testItems)
         plt.savefig(graphPath)
         plt.show()
 
@@ -634,11 +713,11 @@ def test():
             version = getVersionName()
 
             newFolderPath = makeNewFolder(version)
-            savePyPlot(newFolderPath, version, histTestIndex, testY, predictions)
+            savePyPlot(newFolderPath, version, holdoutItems, testItems)
             saveIncludedStocks(newFolderPath)
             saveModel(newFolderPath, bestModel)
 
-            numStocks = getNumStocks(testX, trainX)
+            numStocks = getNumStocks(testX, trainX, holdoutX)
             saveParameters(newFolderPath, version, numStocks)
 
 #predict future date
@@ -732,4 +811,5 @@ def main():
     if PREDICT_ON_DATE:
         PredictOnDate()
 
-main()
+if __name__ == "__main__":
+    main()
