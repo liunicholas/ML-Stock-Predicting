@@ -51,7 +51,6 @@ shortList = ["AAPL", "MSFT", "AMZN", "FB", "GOOGL",
 
 #set QUICK_RUN to true for quick testing
 #set PREDICT_ON_DATE to true and OVERRIDE to true for just predicting a date
-#remove NaN and prepocess while getting data
 
 #dates for training and testing range
 trainStart = "2018-1-1"
@@ -64,7 +63,7 @@ holdoutStart = "2021-1-1"
 holdoutEnd = "2021-5-4"
 
 LOAD_DATASET = True           #set to false when testing architecture
-USE_ALL_STOCKS = False         #set to false for just testing
+USE_ALL_STOCKS = True         #set to false for just testing
 OHLC = 1                      #open = 0, high = 1, low = 2, close = 3
 
 daysBefore = 10                #total days in period for prediction
@@ -76,7 +75,7 @@ expectedHoldout = 64            #find with test run
 QUICK_RUN = False              #for just testing code
 
 TRAIN = True
-TRAIN_EPOCHS = 10
+TRAIN_EPOCHS = 50
 BATCH_SIZE_TRAIN = 4
 BATCH_SIZE_TEST = 4
 
