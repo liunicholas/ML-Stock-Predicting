@@ -33,7 +33,7 @@ import os
 print('[INFO] Done importing packages.')
 
 remoteMachine = True
-versionName = "remoteVersionTesting"
+versionName = "remoteVersionTesting2"
 
 #the 9 federally recognized holidays
 holidays2021 = ["2021-01-01", "2021-01-18", "2021-02-15",
@@ -59,7 +59,7 @@ testEnd = "2020-12-31"
 holdoutStart = "2021-1-1"
 holdoutEnd = "2021-5-4"
 
-LOAD_DATASET = False           #set to false when testing architecture
+LOAD_DATASET = True           #set to false when testing architecture
 USE_ALL_STOCKS = True         #set to false for just testing
 OHLC = 1                      #open = 0, high = 1, low = 2, close = 3
 
@@ -72,7 +72,7 @@ expectedHoldout = 64            #find with test run
 QUICK_RUN = False              #for just testing code
 
 TRAIN = True
-TRAIN_EPOCHS = 10
+TRAIN_EPOCHS = 50
 BATCH_SIZE_TRAIN = 4
 BATCH_SIZE_TEST = 4
 
@@ -534,7 +534,7 @@ class CNN():
         self.model.add(layers.Dense(1))
 
         #lr=0.001, momentum=0.9
-        self.optimizer = optimizers.Adam(lr=0.0001)
+        self.optimizer = optimizers.Adam(lr=0.00001)
         #absolute for regression, squared for classification
 
         #Absolute for few outliers
@@ -728,10 +728,11 @@ def test():
     if TRAIN:
         fig = getLossAndPriceGraph(results, holdoutItems, testItems, trainItems)
         plt.savefig(graphPath)
-        plt.show()
     else:
         fig = getJustPriceGraph(holdoutItems, testItems)
         plt.savefig(graphPath)
+
+    if not remoteMachine:
         plt.show()
 
     #ask to save model if new model
