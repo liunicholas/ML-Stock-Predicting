@@ -11,11 +11,12 @@ print('[INFO] Importing packages.')
 import tensorflow as tf
 import tensorflow.keras.models as models
 import tensorflow.keras.layers as layers
+from tensorflow.keras.layers import Dropout
 import tensorflow.keras.datasets as datasets
 import tensorflow.keras.optimizers as optimizers
 import tensorflow.keras.losses as losses
 import sklearn.preprocessing as preprocessing
-from tensorflow.keras.layers.experimental import preprocessing as preprocessing2
+# from tensorflow.keras.layers.experimental import preprocessing as preprocessing2
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -62,7 +63,7 @@ testEnd = "2020-12-31"
 holdoutStart = "2021-1-1"
 holdoutEnd = "2021-5-4"
 
-LOAD_DATASET = True           #set to false when testing architecture
+LOAD_DATASET = False           #set to false when testing architecture
 USE_ALL_STOCKS = True         #set to false for just testing
 OHLC = 1                      #open = 0, high = 1, low = 2, close = 3
 
@@ -75,7 +76,7 @@ expectedHoldout = 64            #find with test run
 QUICK_RUN = False              #for just testing code
 
 TRAIN = True
-TRAIN_EPOCHS = 50
+TRAIN_EPOCHS = 10
 BATCH_SIZE_TRAIN = 4
 BATCH_SIZE_TEST = 4
 
@@ -377,7 +378,7 @@ def makeNewFolder(version):
 #saves pyplot to folder for later analysis
 def savePyPlot(newFolderPath, version, holdoutItems, testItems):
     print("[INFO] Saving Pyplot.")
-    fig = getJustPriceGraph(holdoutItems, testItems)
+    fig = getLossAndPriceGraph(holdoutItems, testItems)
     plt.savefig(f"{newFolderPath}/{daysBefore}_{daysAhead}_{version}.png")
 #saves text file of included stocks to folder
 def saveIncludedStocks(newFolderPath):
@@ -407,23 +408,26 @@ def getLossAndPriceGraph(results, holdoutItems, testItems, trainItems):
     #training and validation loss
     plt1 = fig.add_subplot(221)
     plt1.title.set_text("training and validation loss")
-    plt1.plot(np.arange(0, TRAIN_EPOCHS), results.history['loss'], color="green", label="real")
-    plt1.plot(np.arange(0, TRAIN_EPOCHS), results.history['val_loss'], color="red", label="preds")
+    plt1.plot(np.arange(0, TRAIN_EPOCHS), results.history['loss'], color="green", label="training")
+    plt1.plot(np.arange(0, TRAIN_EPOCHS), results.history['val_loss'], color="red", label="validation")
     plt1.legend(loc='upper right')
     #training set
     plt2 = fig.add_subplot(222)
-    plt2.plot(trainItems[0], trainItems[1], color="blue", label="real train")
-    plt2.plot(trainItems[0], trainItems[2], color="red", label="preds train")
+    plt2.title.set_text("training set real and preds")
+    plt2.plot(trainItems[0], trainItems[1], color="blue", label="real")
+    plt2.plot(trainItems[0], trainItems[2], color="red", label="preds")
     plt2.legend(loc='upper left')
     #validation set
     plt3 = fig.add_subplot(223)
-    plt3.plot(testItems[0], testItems[1], color="blue", label="real test")
-    plt3.plot(testItems[0], testItems[2], color="red", label="preds test")
+    plt3.title.set_text("validation set real and preds")
+    plt3.plot(testItems[0], testItems[1], color="blue", label="real")
+    plt3.plot(testItems[0], testItems[2], color="red", label="preds")
     plt3.legend(loc='upper left')
     #holdout set
     plt4 = fig.add_subplot(224)
-    plt4.plot(holdoutItems[0], holdoutItems[1], color="blue", label="real holdout")
-    plt4.plot(holdoutItems[0], holdoutItems[2], color="red", label="preds holdout")
+    plt4.title.set_text("holdout set real and preds")
+    plt4.plot(holdoutItems[0], holdoutItems[1], color="blue", label="real")
+    plt4.plot(holdoutItems[0], holdoutItems[2], color="red", label="preds")
     plt4.legend(loc='upper left')
 
     return fig
@@ -433,13 +437,15 @@ def getJustPriceGraph(holdoutItems, testItems):
     fig.tight_layout()
     #validation set
     plt1 = fig.add_subplot(211)
-    plt1.plot(testItems[0], testItems[1], color="blue", label="real test")
-    plt1.plot(testItems[0], testItems[2], color="red", label="preds test")
+    plt1.title.set_text("validation set real and preds")
+    plt1.plot(testItems[0], testItems[1], color="blue", label="real")
+    plt1.plot(testItems[0], testItems[2], color="red", label="preds")
     plt1.legend(loc='upper left')
     #holdout set
     plt2 = fig.add_subplot(212)
-    plt2.plot(holdoutItems[0], holdoutItems[1], color="blue", label="real holdout")
-    plt2.plot(holdoutItems[0], holdoutItems[2], color="red", label="preds holdout")
+    plt2.title.set_text("holdout set real and preds")
+    plt2.plot(holdoutItems[0], holdoutItems[1], color="blue", label="real")
+    plt2.plot(holdoutItems[0], holdoutItems[2], color="red", label="preds")
     plt2.legend(loc='upper left')
 
     return fig
@@ -481,30 +487,38 @@ class CNN():
 
         self.model.add(layers.Conv1D(16, 3, input_shape = input_shape, activation = 'relu'))
         self.model.add(layers.BatchNormalization(trainable=False))
+        self.model.add(Dropout(0.05))
 
         # self.model.add(layers.MaxPooling2D(pool_size = 2))
 
         self.model.add(layers.Conv1D(64, 3, activation = 'relu'))
         self.model.add(layers.BatchNormalization(trainable=False))
+        self.model.add(Dropout(0.1))
 
         self.model.add(layers.Conv1D(128, 3, activation = 'relu'))
         self.model.add(layers.BatchNormalization(trainable=False))
+        self.model.add(Dropout(0.15))
 
         self.model.add(layers.Conv1D(256, 3, activation = 'relu'))
         self.model.add(layers.BatchNormalization(trainable=False))
+        self.model.add(Dropout(0.2))
 
         # self.model.add(layers.MaxPooling2D(pool_size = 2))
 
         self.model.add(layers.Flatten())
 
-        # Now, we flatten to one dimension, so we go to just length 400.
-        self.model.add(layers.Dense(2400, activation = 'relu', input_shape = input_shape))
-        self.model.add(layers.Dense(1200, activation = 'relu'))
-        self.model.add(layers.Dense(600, activation = 'relu'))
-        self.model.add(layers.Dense(300, activation = 'relu'))
-        self.model.add(layers.Dense(120, activation = 'relu'))
-        self.model.add(layers.Dense(60, activation = 'relu'))
-        self.model.add(layers.Dense(20, activation = 'relu'))
+        #get to one value
+        # self.model.add(layers.Dense(2400, activation = 'relu', input_shape = input_shape))
+        # self.model.add(layers.Dense(1200, activation = 'relu'))
+        # self.model.add(layers.Dense(600, activation = 'relu'))
+        # self.model.add(layers.Dense(300, activation = 'relu'))
+        # self.model.add(layers.Dense(120, activation = 'relu'))
+        # self.model.add(layers.Dense(60, activation = 'relu'))
+        # self.model.add(layers.Dense(20, activation = 'relu'))
+        # self.model.add(layers.Dense(1))
+
+        self.model.add(layers.Dense(32, activation = 'relu', input_shape = input_shape))
+        self.model.add(layers.Dense(16, activation = 'relu'))
         self.model.add(layers.Dense(1))
 
         #lr=0.001, momentum=0.9
@@ -646,6 +660,9 @@ def train():
 
     numStocks = getNumStocks(testX, trainX, holdoutX)
     cnn = CNN((numStocks, daysBefore))
+
+    print("[INFO] Printing Tensorflow CNN Summary...")
+    print(cnn)
 
     global results
     results = cnn.model.fit(generator(BATCH_SIZE_TRAIN, trainX, trainY),
