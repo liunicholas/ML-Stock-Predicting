@@ -33,7 +33,7 @@ import os
 print('[INFO] Done importing packages.')
 
 remoteMachine = True
-versionName = "testing"
+versionName = "remoteVersionTesting"
 
 #the 9 federally recognized holidays
 holidays2021 = ["2021-01-01", "2021-01-18", "2021-02-15",
