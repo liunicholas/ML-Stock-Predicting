@@ -97,7 +97,8 @@ previousSavePath = f"{savedModelsPath}/{savedModelName}"    #location of desired
 
 #checks if GPU is recognized
 def checkGPU():
-    global devices = tf.config.list_physical_devices('GPU')
+    global devices
+    devices = tf.config.list_physical_devices('GPU')
     if len(devices) > 0:
         print('[INFO] GPU is detected.')
     else:
