@@ -381,9 +381,9 @@ def makeNewFolder(version):
 
     return newFolderPath
 #saves pyplot to folder for later analysis
-def savePyPlot(newFolderPath, version, holdoutItems, testItems):
+def savePyPlot(newFolderPath, version, holdoutItems, testItems, trainItems):
     print("[INFO] Saving Pyplot.")
-    fig = getLossAndPriceGraph(holdoutItems, testItems)
+    fig = getLossAndPriceGraph(results, holdoutItems, testItems, trainItems)
     plt.savefig(f"{newFolderPath}/{daysBefore}_{daysAhead}_{version}.png")
 #saves text file of included stocks to folder
 def saveIncludedStocks(newFolderPath):
@@ -734,7 +734,7 @@ def test():
             version = getVersionName()
 
             newFolderPath = makeNewFolder(version)
-            savePyPlot(newFolderPath, version, holdoutItems, testItems)
+            savePyPlot(newFolderPath, version, holdoutItems, testItems, trainItems)
             saveIncludedStocks(newFolderPath)
             saveModel(newFolderPath, bestModel)
 

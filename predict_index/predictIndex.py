@@ -24,13 +24,6 @@ from yfinance import *
 from datetime import *
 import os
 
-#TODO: make gpu work??
-# devices = tf.config.list_physical_devices('GPU')
-# if len(devices) > 0:
-#     print('[INFO] GPU is detected.')
-# else:
-#     print('[INFO] GPU not detected.')
-
 #STUFF TO DO
 #natural log of dataset UPDATE: terrible idea
 #work on preprocessing on lines 517 to 521
@@ -38,6 +31,9 @@ import os
 #gpu get cuda 11
 
 print('[INFO] Done importing packages.')
+
+remoteMachine = True
+versionName = "testing"
 
 #the 9 federally recognized holidays
 holidays2021 = ["2021-01-01", "2021-01-18", "2021-02-15",
@@ -99,6 +95,13 @@ savedModelsPath = "./savedModels"                            #save best model
 # savedModelsPath = "/Volumes/transfer/indexModels"
 previousSavePath = f"{savedModelsPath}/{savedModelName}"    #location of desired model for predicting
 
+#checks if GPU is recognized
+def checkGPU():
+    global devices = tf.config.list_physical_devices('GPU')
+    if len(devices) > 0:
+        print('[INFO] GPU is detected.')
+    else:
+        print('[INFO] GPU not detected.')
 #overides load, train, test, when predicting
 def setModes():
     #only makes new global variables if needed
@@ -345,28 +348,36 @@ def displayPredictionsAsText(histIndex, predictions):
 
 #ask user if they want to save the model
 def askUserSaveModel():
-    while True:
-        keep = input("save this model to folder? (y/n)")
-        if keep != "y" and keep != "n":
-            print("error")
-            continue
-        break
+    if remoteMachine:
+        return "y"
 
-    return keep
-#ask user for version name
-def getVersionName():
-    while True:
-        version = input("version name: ")
+    else:
         while True:
-            confirm = input("confirm? (y/n)")
-            if confirm != "y" and confirm != "n":
+            keep = input("save this model to folder? (y/n)")
+            if keep != "y" and keep != "n":
                 print("error")
                 continue
             break
-        if confirm == "y":
-            break
 
-    return version
+        return keep
+#ask user for version name
+def getVersionName():
+    if remoteMachine:
+        return versionName
+
+    else:
+        while True:
+            version = input("version name: ")
+            while True:
+                confirm = input("confirm? (y/n)")
+                if confirm != "y" and confirm != "n":
+                    print("error")
+                    continue
+                break
+            if confirm == "y":
+                break
+
+        return version
 
 #makes new folder for saved model
 def makeNewFolder(version):
@@ -815,6 +826,7 @@ def PredictOnDate():
     print(f"\nprediction for {predictDate}: {prediction[0][0]}\n")
 
 def main():
+    checkGPU()
     setModes()
     setCustomCallback()
 
