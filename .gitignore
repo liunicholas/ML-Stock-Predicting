@@ -2,3 +2,4 @@
 *.index
 *.pb
 variables*
+.DS_Store
