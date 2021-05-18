@@ -1,18 +1,12 @@
+#STUFF TO DO
+#work on architecture
+#convert price to price gains?
+
 print('[INFO] Importing packages.')
-# Python                 3.8.1
-# Keras-Preprocessing    1.1.2
-# matplotlib             3.3.3
-# multitasking           0.0.9
-# numpy                  1.18.5
-# pandas                 1.2.2
-# scikit-learn           0.24.1
-# scipy                  1.6.0
-# tensorflow             2.3.1
 import tensorflow as tf
 import tensorflow.keras.models as models
 import tensorflow.keras.layers as layers
 from tensorflow.keras.layers import Dropout
-import tensorflow.keras.datasets as datasets
 import tensorflow.keras.optimizers as optimizers
 import tensorflow.keras.losses as losses
 import sklearn.preprocessing as preprocessing
@@ -23,74 +17,10 @@ from yfinance import *
 from datetime import *
 import os
 
-#STUFF TO DO
-#work on preprocessing on lines 517 to 521
-#normalization doesn't detect changes
+from parameters import *        #edit parameters from parameters.py
+from cnn import *               #edit cnn from cnn.py
 
 print('[INFO] Done importing packages.')
-
-remoteMachine = True
-versionName = "remoteVersionTesting2"
-
-#the 9 federally recognized holidays
-holidays2021 = ["2021-01-01", "2021-01-18", "2021-02-15",
-    "2021-04-02", "2021-05-31", "2021-07-05",
-    "2021-09-06", "2021-11-25", "2021-12-25"]
-
-#focusing on SPDR S&P 500 ETF
-INDEX = "SPY"
-indexSource = "https://en.wikipedia.org/wiki/List_of_S%26P_500_companies"
-shortList = ["AAPL", "MSFT", "AMZN", "FB", "GOOGL",
-    "GOOG", "TSLA", "BRK.B", "JPM", "JNJ"]
-
-#set QUICK_RUN to true for quick testing
-#set PREDICT_ON_DATE to true and OVERRIDE to true for just predicting a date
-
-#dates for training and testing range
-trainStart = "2018-1-1"
-trainEnd = "2019-12-31"
-
-testStart = "2020-1-1"
-testEnd = "2020-12-31"
-
-holdoutStart = "2021-1-1"
-holdoutEnd = "2021-5-4"
-
-LOAD_DATASET = True           #set to false when testing architecture
-USE_ALL_STOCKS = True         #set to false for just testing
-OHLC = 1                      #open = 0, high = 1, low = 2, close = 3
-
-daysBefore = 10                #total days in period for prediction
-daysAhead = 10                  #total days predicting in future
-expectedTrain = 483            #find with test run
-expectedTest = 233             #find with test run
-expectedHoldout = 64            #find with test run
-
-QUICK_RUN = False              #for just testing code
-
-TRAIN = True
-TRAIN_EPOCHS = 50
-BATCH_SIZE_TRAIN = 4
-BATCH_SIZE_TEST = 4
-
-TEST = True
-NEW_MODEL = True              #tests on a new model
-
-PREDICT_ON_DATE = False        #set to true to predict day
-OVERRIDE = True               #overrides load, train, test, and new_model
-
-#vars for predicting
-predictDate = "2021-04-26"
-savedModelName = "5_1_mk1"
-
-graphPath = "./info/pyplots/newestPlot.png"                  #save mpl graph
-dataPath = "./info/datasets/allSpy.npy"                      #save npy arrays
-checkpointPath = "./info/checkpoints"                        #save models
-stocksIncludedPath = "./info/datasets/stocksIncluded.txt"    #save list of stocks used
-
-savedModelsPath = "./savedModels"                            #save best model
-# savedModelsPath = "/Volumes/transfer/indexModels"
-previousSavePath = f"{savedModelsPath}/{savedModelName}"    #location of desired model for predicting
 
 #checks if GPU is recognized
 def checkGPU():
@@ -100,7 +30,7 @@ def checkGPU():
         print('[INFO] GPU is detected.')
     else:
         print('[INFO] GPU not detected.')
-#overides load, train, test, when predicting
+#overides load, train, test, when predicting or using quick run
 def setModes():
     #only makes new global variables if needed
     if PREDICT_ON_DATE and OVERRIDE or QUICK_RUN:
@@ -406,7 +336,8 @@ def saveParameters(newFolderPath, version, numStocks):
     f.write(f"training dates: {trainStart} to {trainEnd}\n")
     f.write(f"testing dates: {testStart} to {testEnd}\n")
     f.write(f"holdout dates: {holdoutStart} to {holdoutEnd}\n")
-    f.write(f"days before: {daysBefore} days ahead: {daysAhead} \n")
+    f.write(f"days before: {daysBefore}\n")
+    f.write(f"days ahead: {daysAhead}\n")
     f.write(f"number of stocks included: {numStocks}\n")
     f.close()
 
@@ -486,68 +417,6 @@ def getDateInPast(initial, days):
 
     return currentDate
 
-#CNN for 3D numpy array
-class CNN():
-    def __init__(self, input_shape):
-        self.model = models.Sequential()
-        # For Conv2D, you give it: Outgoing Layers, Frame size.  Everything else needs a keyword.
-        # Popular keyword choices: strides (default is strides=1), padding (="valid" means 0, ="same" means whatever gives same output width/height as input).  Not sure yet what to do if you want some other padding.
-        # Activation function is built right into the Conv2D function as a keyword argument.
-
-        self.model.add(layers.Conv1D(16, 3, input_shape = input_shape, activation = 'relu'))
-        self.model.add(layers.BatchNormalization(trainable=False))
-        self.model.add(Dropout(0.05))
-
-        # self.model.add(layers.MaxPooling2D(pool_size = 2))
-
-        self.model.add(layers.Conv1D(64, 3, activation = 'relu'))
-        self.model.add(layers.BatchNormalization(trainable=False))
-        self.model.add(Dropout(0.1))
-
-        self.model.add(layers.Conv1D(128, 3, activation = 'relu'))
-        self.model.add(layers.BatchNormalization(trainable=False))
-        self.model.add(Dropout(0.15))
-
-        self.model.add(layers.Conv1D(256, 3, activation = 'relu'))
-        self.model.add(layers.BatchNormalization(trainable=False))
-        self.model.add(Dropout(0.2))
-
-        # self.model.add(layers.MaxPooling2D(pool_size = 2))
-
-        self.model.add(layers.Flatten())
-
-        #get to one value
-        # self.model.add(layers.Dense(2400, activation = 'relu', input_shape = input_shape))
-        # self.model.add(layers.Dense(1200, activation = 'relu'))
-        # self.model.add(layers.Dense(600, activation = 'relu'))
-        # self.model.add(layers.Dense(300, activation = 'relu'))
-        # self.model.add(layers.Dense(120, activation = 'relu'))
-        # self.model.add(layers.Dense(60, activation = 'relu'))
-        # self.model.add(layers.Dense(20, activation = 'relu'))
-        # self.model.add(layers.Dense(1))
-
-        self.model.add(layers.Dense(32, activation = 'relu', input_shape = input_shape))
-        self.model.add(layers.Dense(16, activation = 'relu'))
-        self.model.add(layers.Dense(1))
-
-        #lr=0.001, momentum=0.9
-        self.optimizer = optimizers.Adam(lr=0.00001)
-        #absolute for regression, squared for classification
-
-        #Absolute for few outliers
-        #squared to aggresively diminish outliers
-        self.loss = losses.MeanSquaredError()
-        #metrics=['accuracy']
-        #metrics=['mse']
-        self.model.compile(loss=self.loss, optimizer=self.optimizer)
-
-    def __str__(self):
-        self.model.summary(print_fn = self.print_summary)
-        return ""
-
-    def print_summary(self, summaryStr):
-        print(summaryStr)
-
 #load and format dataset
 def loadData():
     print("[INFO] Loading Traning and Test Datasets.")
@@ -600,6 +469,7 @@ def loadData():
         if trainXstock.shape[0] != 0 and testXstock.shape[0] != 0 and holdoutXstock.shape[0] != 0:
             if trainXstock.shape[1] != expectedTrain or testXstock.shape[1] != expectedTest or holdoutXstock.shape[1] != expectedHoldout:
                 print("[Error] Possibly did not set expectedTrain and expectedTest")
+                print("[Fix] Replace expected values in parameters.py to match above values")
 
                 #fix data to match expected shapes
                 trainXstock = fixData(trainXstock, expectedTrain)
@@ -731,6 +601,7 @@ def test():
 
     if not remoteMachine:
         plt.show()
+        print(f"[INFO] Close plot to continue.")
 
     #ask to save model if new model
     if NEW_MODEL:
