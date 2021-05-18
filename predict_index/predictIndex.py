@@ -16,7 +16,6 @@ import tensorflow.keras.datasets as datasets
 import tensorflow.keras.optimizers as optimizers
 import tensorflow.keras.losses as losses
 import sklearn.preprocessing as preprocessing
-# from tensorflow.keras.layers.experimental import preprocessing as preprocessing2
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -25,10 +24,8 @@ from datetime import *
 import os
 
 #STUFF TO DO
-#natural log of dataset UPDATE: terrible idea
 #work on preprocessing on lines 517 to 521
 #normalization doesn't detect changes
-#gpu get cuda 11
 
 print('[INFO] Done importing packages.')
 
@@ -404,7 +401,7 @@ def saveModel(newFolderPath, bestModel):
 #saves all info to text file
 def saveParameters(newFolderPath, version, numStocks):
     print("[INFO] Saving Parameters.")
-    f = open(f"{newFolderPath}/{daysBefore}_{daysAhead}_{version} info.txt", 'w')
+    f = open(f"{newFolderPath}/{daysBefore}_{daysAhead}_{version}_info.txt", 'w')
     f.write(f"version name: {daysBefore}_{daysAhead}_{version}\n")
     f.write(f"training dates: {trainStart} to {trainEnd}\n")
     f.write(f"testing dates: {testStart} to {testEnd}\n")
