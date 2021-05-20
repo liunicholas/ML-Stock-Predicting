@@ -4,7 +4,7 @@ remoteVersionName = "remoteTestMay20"     #name of version for the saved model
 #set QUICK_RUN to true for quick testing
 #set PREDICT_ON_DATE to true and OVERRIDE to true for just predicting a date
 
-QUICK_RUN = True              #for just testing code (OVERIDES EVERYTHING)
+QUICK_RUN = False              #for just testing code (OVERIDES EVERYTHING)
 
 #dates for training and testing range
 trainStart = "2005-01-01"
