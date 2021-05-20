@@ -1,0 +1,7 @@
+version name: 10_10_remoteTestMay20
+training dates: 2005-01-01 to 2007-01-01
+testing dates: 2008-01-01 to 2010-01-01
+holdout dates: 2011-01-01 to 2013-01-01
+days before: 10
+days ahead: 10
+number of stocks included: 430
