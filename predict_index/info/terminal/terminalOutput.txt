@@ -2,3 +2,125 @@
 [INFO] Done importing packages.
 [INFO] GPU not detected.
 [INFO] Loading Traning and Test Datasets.
+
+[INFO] Loading Index Data.
+target shape train: 484
+target shape test: 486
+target shape holdout: 483
+
+[INFO] Loading Dataset For AAPL.
+train stock shape: (10, 484)
+test stock shape: (10, 486)
+holdout stock shape: (10, 483)
+[INFO] Checking stock validity.
+[INFO] Stock valid.
+
+[INFO] Loading Dataset For MSFT.
+train stock shape: (10, 484)
+test stock shape: (10, 486)
+holdout stock shape: (10, 483)
+[INFO] Checking stock validity.
+[INFO] Stock valid.
+
+[INFO] Loading Dataset For AMZN.
+train stock shape: (10, 484)
+test stock shape: (10, 486)
+holdout stock shape: (10, 483)
+[INFO] Checking stock validity.
+[INFO] Stock valid.
+
+[INFO] Loading Dataset For FB.
+- FB: Data doesn't exist for startDate = 1104566400, endDate = 1167638400
+- FB: Data doesn't exist for startDate = 1199174400, endDate = 1262332800
+train stock shape: (0,)
+test stock shape: (0,)
+holdout stock shape: (10, 136)
+[INFO] Checking stock validity.
+[Error] Stock invalid.
+
+[INFO] Loading Dataset For GOOGL.
+train stock shape: (10, 484)
+test stock shape: (10, 486)
+holdout stock shape: (10, 483)
+[INFO] Checking stock validity.
+[INFO] Stock valid.
+
+[INFO] Loading Dataset For GOOG.
+train stock shape: (10, 484)
+test stock shape: (10, 486)
+holdout stock shape: (10, 483)
+[INFO] Checking stock validity.
+[INFO] Stock valid.
+
+[INFO] Loading Dataset For TSLA.
+- TSLA: Data doesn't exist for startDate = 1104566400, endDate = 1167638400
+- TSLA: Data doesn't exist for startDate = 1199174400, endDate = 1262332800
+train stock shape: (0,)
+test stock shape: (0,)
+holdout stock shape: (10, 483)
+[INFO] Checking stock validity.
+[Error] Stock invalid.
+
+[INFO] Loading Dataset For BRK.B.
+- BRK.B: No data found, symbol may be delisted
+- BRK.B: No data found, symbol may be delisted
+- BRK.B: No data found, symbol may be delisted
+train stock shape: (0,)
+test stock shape: (0,)
+holdout stock shape: (0,)
+[INFO] Checking stock validity.
+[Error] Stock invalid.
+
+[INFO] Loading Dataset For JPM.
+train stock shape: (10, 484)
+test stock shape: (10, 486)
+holdout stock shape: (10, 483)
+[INFO] Checking stock validity.
+[INFO] Stock valid.
+
+[INFO] Loading Dataset For JNJ.
+train stock shape: (10, 484)
+test stock shape: (10, 486)
+holdout stock shape: (10, 483)
+[INFO] Checking stock validity.
+[INFO] Stock valid.
+[INFO] Rehaping Dataset.
+total trainX shape after reshape: (484, 7, 10)
+total testX shape after reshape: (486, 7, 10)
+total holdoutX shape after reshape: (483, 7, 10)
+target shape train: 484
+target shape test: 486
+target shape holdout: 483
+7
+10
+[INFO] Printing Tensorflow CNN Summary...
+Model: "sequential"
+_________________________________________________________________
+Layer (type)                 Output Shape              Param #   
+=================================================================
+conv1d (Conv1D)              (None, 5, 16)             496       
+_________________________________________________________________
+batch_normalization (BatchNo (None, 5, 16)             64        
+_________________________________________________________________
+dropout (Dropout)            (None, 5, 16)             0         
+_________________________________________________________________
+flatten (Flatten)            (None, 80)                0         
+_________________________________________________________________
+dense (Dense)                (None, 32)                2592      
+_________________________________________________________________
+dense_1 (Dense)              (None, 16)                528       
+_________________________________________________________________
+dense_2 (Dense)              (None, 1)                 17        
+=================================================================
+Total params: 3,697
+Trainable params: 3,633
+Non-trainable params: 64
+_________________________________________________________________
+
+Epoch 1/2
+ 1/15 [>.............................] - ETA: 0s - loss: 19610.210916/15 [===============================] - 1s 59ms/step - loss: 32824.2109 - val_loss: 40168.8516
+Epoch 2/2
+ 1/15 [>.............................] - ETA: 0s - loss: 21062.691416/15 [===============================] - 1s 50ms/step - loss: 31483.9941 - val_loss: 39321.1914
+[INFO] Making Predictions.
+[INFO] Close plot to continue.
+save this model to folder? (y/n)

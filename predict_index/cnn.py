@@ -1,3 +1,10 @@
+import tensorflow as tf
+import tensorflow.keras.models as models
+import tensorflow.keras.layers as layers
+from tensorflow.keras.layers import Dropout
+import tensorflow.keras.optimizers as optimizers
+import tensorflow.keras.losses as losses
+
 TRAIN_EPOCHS = 100
 BATCH_SIZE_TRAIN = 32
 BATCH_SIZE_TEST = 32
@@ -16,17 +23,17 @@ class CNN():
 
         # self.model.add(layers.MaxPooling2D(pool_size = 2))
 
-        self.model.add(layers.Conv1D(64, 3, activation = 'relu'))
-        self.model.add(layers.BatchNormalization(trainable=False))
-        self.model.add(Dropout(0.1))
-
-        self.model.add(layers.Conv1D(128, 3, activation = 'relu'))
-        self.model.add(layers.BatchNormalization(trainable=False))
-        self.model.add(Dropout(0.15))
-
-        self.model.add(layers.Conv1D(256, 3, activation = 'relu'))
-        self.model.add(layers.BatchNormalization(trainable=False))
-        self.model.add(Dropout(0.2))
+        # self.model.add(layers.Conv1D(64, 3, activation = 'relu'))
+        # self.model.add(layers.BatchNormalization(trainable=False))
+        # self.model.add(Dropout(0.1))
+        #
+        # self.model.add(layers.Conv1D(128, 3, activation = 'relu'))
+        # self.model.add(layers.BatchNormalization(trainable=False))
+        # self.model.add(Dropout(0.15))
+        #
+        # self.model.add(layers.Conv1D(256, 3, activation = 'relu'))
+        # self.model.add(layers.BatchNormalization(trainable=False))
+        # self.model.add(Dropout(0.2))
 
         # self.model.add(layers.MaxPooling2D(pool_size = 2))
 

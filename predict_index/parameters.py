@@ -1,20 +1,20 @@
-remoteMachine = True                    #will automatically save the model
-versionName = "filledHistoricalData"     #name of version for the saved model
+remoteMachine = True                   #will automatically save the model
+remoteVersionName = "remoteTestMay20"     #name of version for the saved model
 
 #set QUICK_RUN to true for quick testing
 #set PREDICT_ON_DATE to true and OVERRIDE to true for just predicting a date
 
-QUICK_RUN = False              #for just testing code (OVERIDES EVERYTHING)
+QUICK_RUN = True              #for just testing code (OVERIDES EVERYTHING)
 
 #dates for training and testing range
-trainStart = "1993-04-23"
-trainEnd = "2002-11-15"
+trainStart = "2005-01-01"
+trainEnd = "2007-01-01"
 
-testStart = "2002-11-15"
-testEnd = "2009-03-20"
+testStart = "2008-01-01"
+testEnd = "2010-01-01"
 
-holdoutStart = "2009-03-06"
-holdoutEnd = "2016-01-02"
+holdoutStart = "2011-01-01"
+holdoutEnd = "2013-01-01"
 
 LOAD_DATASET = True           #set to false when testing architecture
 USE_ALL_STOCKS = True         #set to false for just testing
@@ -23,12 +23,17 @@ OHLC = 1                      #open = 0, high = 1, low = 2, close = 3
 daysBefore = 10                #total days in period for prediction
 daysAhead = 10                  #total days predicting in future
 
-expectedTrain = 2393            #find with test run
-expectedTest = 1576             #find with test run
-expectedHoldout = 1700            #find with test run
+# expectedTrain = 2393            #find with test run
+# expectedTest = 1576             #find with test run
+# expectedHoldout = 1700           #find with test run
 
 #edit epochs and batch sizes from cnn.py
 TRAIN = True                  #makes the model
+
+#tensorflow training variables
+TRAIN_EPOCHS = 100
+BATCH_SIZE_TRAIN = 32
+BATCH_SIZE_TEST = 32
 
 TEST = True                   #for comparing real with predictions
 NEW_MODEL = True              #tests on a new model

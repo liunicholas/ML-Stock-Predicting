@@ -3,12 +3,6 @@
 #convert price to price gains?
 
 print('[INFO] Importing packages.')
-import tensorflow as tf
-import tensorflow.keras.models as models
-import tensorflow.keras.layers as layers
-from tensorflow.keras.layers import Dropout
-import tensorflow.keras.optimizers as optimizers
-import tensorflow.keras.losses as losses
 import sklearn.preprocessing as preprocessing
 import matplotlib.pyplot as plt
 import numpy as np
@@ -122,6 +116,7 @@ def getYnumpy(hist):
     #to get columns
     histNP = np.transpose(histNP)
     OHLCcolumn = histNP[OHLC]
+    OHLCcolumn = removeNaNall(OHLCcolumn)
 
     Y = []
     #target is daysBefore+1
@@ -146,7 +141,7 @@ def removeNaN(stockArray):
 
         for i in range(stockArray[rowIndex].shape[0]):
             if np.isnan(stockArray[rowIndex][i]):
-                print("NaN Found")
+                print("[Error] NaN Found")
                 stockArray[rowIndex][i] = avg
 
     return stockArray
@@ -155,7 +150,7 @@ def removeNaNall(array):
     for i in range(array.shape[0]):
         # print(array.shape[0])
         if np.isnan(array[i]):
-            print("NaN Found")
+            print("[Error] NaN Found")
             if i==0:
                 array[i] = array[i+1]
                 continue
@@ -177,7 +172,7 @@ def removeNaNsingleColumn(stockArray):
 
     for index in range(stockArray.shape[0]):
         if np.isnan(stockArray[index][0]):
-            print("NaN Found")
+            print("[Error] NaN Found")
             stockArray[index][0] = avg
 
     return stockArray
@@ -291,7 +286,7 @@ def askUserSaveModel():
 #ask user for version name
 def getVersionName():
     if remoteMachine:
-        return versionName
+        return remoteVersionName
 
     else:
         while True:
@@ -421,6 +416,22 @@ def getDateInPast(initial, days):
 def loadData():
     print("[INFO] Loading Traning and Test Datasets.")
 
+    #index target prices
+    print("\n[INFO] Loading Index Data.")
+    histTrainIndex = getData(f"{INDEX}", trainStart, trainEnd)
+    histTestIndex = getData(f"{INDEX}", testStart, testEnd)
+    histHoldoutIndex = getData(f"{INDEX}", holdoutStart, holdoutEnd)
+    trainY = getYnumpy(histTrainIndex)
+    testY = getYnumpy(histTestIndex)
+    holdoutY = getYnumpy(histHoldoutIndex)
+    print(f"target shape train: {trainY.shape[0]}")
+    print(f"target shape test: {testY.shape[0]}")
+    print(f"target shape holdout: {holdoutY.shape[0]}")
+
+    expectedTrain = trainY.shape[0]
+    expectedTest = testY.shape[0]
+    expectedHoldout = holdoutY.shape[0]
+
     #uses all 500+ stocks in the index
     if USE_ALL_STOCKS:
         INDEX_STOCKS = getTickers()
@@ -435,7 +446,7 @@ def loadData():
     stockHistsHoldoutX = []
 
     for stock in INDEX_STOCKS:
-        print(f"[INFO] Loading Dataset For {stock}.")
+        print(f"\n[INFO] Loading Dataset For {stock}.")
         train = getData(f"{stock}", trainStart, trainEnd)
         test = getData(f"{stock}", testStart, testEnd)
         holdout = getData(f"{stock}", holdoutStart, holdoutEnd)
@@ -516,17 +527,9 @@ def loadData():
     print(f"total testX shape after reshape: {testX.shape}")
     print(f"total holdoutX shape after reshape: {holdoutX.shape}")
 
-    #index target prices
-    print("[INFO] Loading Index Data.")
-    histTrainIndex = getData(f"{INDEX}", trainStart, trainEnd)
-    histTestIndex = getData(f"{INDEX}", testStart, testEnd)
-    histHoldoutIndex = getData(f"{INDEX}", holdoutStart, holdoutEnd)
-    trainY = getYnumpy(histTrainIndex)
-    testY = getYnumpy(histTestIndex)
-    holdoutY = getYnumpy(histHoldoutIndex)
-    print(f"target shape train: {trainY.shape}")
-    print(f"target shape test: {testY.shape}")
-    print(f"target shape holdout: {holdoutY.shape}")
+    print(f"target shape train: {trainY.shape[0]}")
+    print(f"target shape test: {testY.shape[0]}")
+    print(f"target shape holdout: {holdoutY.shape[0]}")
 
     saveDataSet(dataPath, trainX, trainY, testX, testY, holdoutX, holdoutY)
 
@@ -538,6 +541,8 @@ def train():
     # testX = np.log(testX)
 
     numStocks = getNumStocks(testX, trainX, holdoutX)
+    print(numStocks)
+    print(daysBefore)
     cnn = CNN((numStocks, daysBefore))
 
     print("[INFO] Printing Tensorflow CNN Summary...")
@@ -657,7 +662,7 @@ def PredictOnDate():
     #loads necessary data for the one needed prediction
     stockHistsTestX = []
     for stock in INDEX_STOCKS:
-        print(f"[INFO] Loading Testset For {stock}.")
+        print(f"\n[INFO] Loading Testset For {stock}.")
         test = getData(f"{stock}", predictStart, predictEnd)
         test = getXnumpyPredict(test)
         # test = preprocessing.normalize(test)
