@@ -1,0 +1,5 @@
+version name: 10_10_testHoldoutDontUse
+training dates: 2018-1-1 to 2019-12-31
+testing dates: 2020-1-1 to 2020-12-31
+days before: 10 days ahead: 10 
+number of stocks included: 9

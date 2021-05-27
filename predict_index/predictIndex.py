@@ -9,7 +9,7 @@ import numpy as np
 import pandas as pd
 from yfinance import *
 from datetime import *
-import os
+from os import mkdir
 
 from parameters import *        #edit parameters from parameters.py
 from cnn import *               #edit cnn from cnn.py
@@ -306,7 +306,7 @@ def getVersionName():
 def makeNewFolder(version):
     print("[INFO] Making New Model Folder.")
     newFolderPath = f"{savedModelsPath}/{daysBefore}_{daysAhead}_{version}"
-    os.mkdir(newFolderPath)
+    mkdir(newFolderPath)
 
     return newFolderPath
 #saves pyplot to folder for later analysis
@@ -338,6 +338,7 @@ def saveParameters(newFolderPath, version, numStocks):
 
 #get loss and price graph
 def getLossAndPriceGraph(results, holdoutItems, testItems, trainItems):
+    #index 0 is dates, index 1 is real, index 2 is predictions
     fig = plt.figure("preds vs real high price", figsize=(15, 8))
     fig.tight_layout()
     #training and validation loss

@@ -1,0 +1,5 @@
+version name: 21_1_longerTrainingTime
+training dates: 2018-12-21 to 2020-2-14
+testing dates: 2020-03-20 to 2021-3-11
+days before: 21 days ahead: 1 
+number of stocks included: 499
