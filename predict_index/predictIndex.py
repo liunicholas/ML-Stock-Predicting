@@ -305,7 +305,7 @@ def getVersionName():
 #makes new folder for saved model
 def makeNewFolder(version):
     print("[INFO] Making New Model Folder.")
-    newFolderPath = f"{savedModelsPath}/{daysBefore}_{daysAhead}_{version}"
+    newFolderPath = f"{savedModelsPath}/{daysBefore}_{daysAhead}_{OHLC}_{version}"
     mkdir(newFolderPath)
 
     return newFolderPath
@@ -313,7 +313,7 @@ def makeNewFolder(version):
 def savePyPlot(newFolderPath, version, holdoutItems, testItems, trainItems):
     print("[INFO] Saving Pyplot.")
     fig = getLossAndPriceGraph(results, holdoutItems, testItems, trainItems)
-    plt.savefig(f"{newFolderPath}/{daysBefore}_{daysAhead}_{version}.png")
+    plt.savefig(f"{newFolderPath}/{daysBefore}_{daysAhead}_{OHLC}_{version}.png")
 #saves text file of included stocks to folder
 def saveIncludedStocks(newFolderPath):
     print("[INFO] Saving Included Stocks Text File.")
@@ -326,13 +326,14 @@ def saveModel(newFolderPath, bestModel):
 #saves all info to text file
 def saveParameters(newFolderPath, version, numStocks):
     print("[INFO] Saving Parameters.")
-    f = open(f"{newFolderPath}/{daysBefore}_{daysAhead}_{version}_info.txt", 'w')
-    f.write(f"version name: {daysBefore}_{daysAhead}_{version}\n")
+    f = open(f"{newFolderPath}/{daysBefore}_{daysAhead}_{OHLC}_{version}_info.txt", 'w')
+    f.write(f"version name: {daysBefore}_{daysAhead}_{OHLC}_{version}\n")
     f.write(f"training dates: {trainStart} to {trainEnd}\n")
     f.write(f"testing dates: {testStart} to {testEnd}\n")
     f.write(f"holdout dates: {holdoutStart} to {holdoutEnd}\n")
     f.write(f"days before: {daysBefore}\n")
     f.write(f"days ahead: {daysAhead}\n")
+    f.write(f"OHLC column: {OHLC}\n")
     f.write(f"number of stocks included: {numStocks}\n")
     f.close()
 
@@ -706,14 +707,18 @@ def main():
     setModes()
     setCustomCallback()
 
-    if LOAD_DATASET:
-        loadData()
-    if TRAIN:
-        train()
-    if TEST:
-        test()
-    if PREDICT_ON_DATE:
-        PredictOnDate()
+    global OHLC
+    for val in OHLCvals:
+        OHLC = val
+
+        if LOAD_DATASET:
+            loadData()
+        if TRAIN:
+            train()
+        if TEST:
+            test()
+        if PREDICT_ON_DATE:
+            PredictOnDate()
 
 if __name__ == "__main__":
     main()

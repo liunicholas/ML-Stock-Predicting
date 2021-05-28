@@ -1,5 +1,5 @@
 remoteMachine = True                   #will automatically save the model
-remoteVersionName = "remoteTestMay27"     #name of version for the saved model
+remoteVersionName = "remoteTestMay28"     #name of version for the saved model
 
 #set QUICK_RUN to true for quick testing
 #set PREDICT_ON_DATE to true and OVERRIDE to true for just predicting a date
@@ -18,7 +18,7 @@ holdoutEnd = "2013-01-01"
 
 LOAD_DATASET = True           #set to false when testing architecture
 USE_ALL_STOCKS = True         #set to false for just testing
-OHLC = 1               #open = 0, high = 1, low = 2, close = 3
+OHLCvals = [1,2,3,4]              #open = 0, high = 1, low = 2, close = 3
 
 daysBefore = 10                #total days in period for prediction
 daysAhead = 10                 #total days predicting in future
