@@ -25,18 +25,16 @@ import os
 
 print('[INFO] Done importing packages.')
 
-#work on getXnumpy and getYnumpy and play with intervals
-#work on architecture [ask dr j]
-#change parse before and ahead to intervals [written but not tested]
-#fix save Parameters [written but not tested]
-#make graphs [make graph of momentum vs buy or sell]
-#fix save user model
+#work on getXnumpy and getYnumpy
+#work on architecture
+#work on training
+#change parse before and ahead to intervals
 
 holidays2021 = ["2021-01-01", "2021-01-18", "2021-02-15",
     "2021-04-02", "2021-05-31", "2021-07-05",
     "2021-09-06", "2021-11-25", "2021-12-25"]
 
-STOCK = "SPY"
+STOCK = "TSLA"
 
 #set QUICK_RUN to true for quick testing
 #set PREDICT_ON_DATE to true and OVERRIDE to true for just predicting a date
@@ -53,8 +51,8 @@ OHLC = 1                      #open = 0, high = 1, low = 2, close = 3
 
 #intervals are total days not days before
 #add intervals and subtract 2 to get start values for data needed
-intervalMomentum = 10          #interval to find momentum
-intervalPeriod = 20            #interval to group together
+intervalMomentum = 7          #interval to find momentum
+intervalPeriod = 5            #interval to group together
 
 daysAhead = 1                  #predict days ahead
 
@@ -64,11 +62,11 @@ daysAhead = 1                  #predict days ahead
 QUICK_RUN = False              #for just testing code
 
 TRAIN = True
-TRAIN_EPOCHS = 50
+TRAIN_EPOCHS = 25
 BATCH_SIZE_TRAIN = 16
 BATCH_SIZE_TEST = 16
 
-TEST = True
+TEST = False
 NEW_MODEL = True              #tests on a new model
 
 PREDICT_ON_DATE = False        #set to true to predict day
@@ -81,7 +79,6 @@ savedModelName = ""
 graphPath = "./info/pyplots/newestPlot.png"                  #save mpl graph
 dataPath = "./info/datasets/thisStock.npy"                    #save npy arrays
 checkpointPath = "./info/checkpoints"                        #save models
-
 savedModelsPath = "./savedModels"                            #save best model
 previousSavePath = f"{savedModelsPath}/{savedModelName}/"    #location of desired model for predicting
 
@@ -115,10 +112,8 @@ def setCustomCallback():
     customCallback = tf.keras.callbacks.ModelCheckpoint(
         filepath=checkpointPath,
         # save_weights_only=True,
-        monitor='val_accuracy',
-        mode='max',
-        # monitor='val_min',
-        # mode='min',
+        monitor='accuracy',
+        mode='min',
         save_best_only=True)
 
 #get pandas dataframe of a stock
@@ -177,7 +172,7 @@ def getYnumpy(hist):
 
         #0 for sell, 1 for buy
         #try with 0 for buy, 1 for hold, and 2 for sell later
-        if difference < 0:
+        if difference < 1:
             binarizedList.append(0)
         else:
             binarizedList.append(1)
@@ -185,6 +180,7 @@ def getYnumpy(hist):
     # get the differences between dates and define classes
 
     return binarizedList
+
 #locate and remove NaN in 1 dimensional numpy array
 def removeNaN(array):
     for i in range(array.shape[0]):
@@ -200,6 +196,35 @@ def removeNaN(array):
             array[i] = (array[i+1] + array[i-1]) / 2
 
     return array
+# #adds or removes data as necessary to fit expected train and test values
+# def fixData(stockArray, expectedVal):
+#     stockArray = np.transpose(stockArray)
+#     while stockArray.shape[0] < expectedVal:
+#         stockArray = np.vstack([stockArray[0],stockArray])
+#     while stockArray.shape[0] > expectedVal:
+#         stockArray = np.delete(stockArray,0,0)
+#     stockArray = np.transpose(stockArray)
+#
+#     return stockArray
+# #same as above but for single column
+# def fixDataSingleColumn(stockArray, expectedVal):
+#     while stockArray.shape[0] < expectedVal:
+#         print(stockArray)
+#         stockArray = np.vstack([stockArray[0],stockArray])
+#         print(stockArray)
+#     while stockArray.shape[0] > expectedVal:
+#         print(stockArray)
+#         stockArray = np.delete(stockArray,0)
+#         print(stockArray)
+#
+#     return stockArray
+# #vstack, transpose, swaps axis 1 and 2
+# def stackTransposeSwap(stocksList):
+#     stocksCombined = np.vstack(stocksList)
+#     xSet = np.transpose(stocksCombined)
+#     xSet = np.swapaxes(xSet,1,2)
+#
+#     return xSet
 
 #save numpy arrays to npy file
 def saveDataSet(dataPath, trainX, trainY, testX, testY):
@@ -218,6 +243,12 @@ def loadDataSet(dataPath):
 
     return trainX, trainY, testX, testY
 
+# #get number of stocks used in dataset
+# def getNumStocks(testX, trainX):
+#     assert trainX.shape[1] == testX.shape[1]
+#     numStocks = trainX.shape[1]
+#
+#     return numStocks
 #won't load all data at once while training and testing
 def generator(batchSize, x, y):
     index = 0
@@ -233,51 +264,19 @@ def generator(batchSize, x, y):
         yield np.array(batchX), np.array(batchY)
 
 #gets the mpl fig for the loss
-def getLossGraph(results):
-    fig = plt.figure("training metrics", figsize=(10, 8))
+def getLossGraph(results, histTestIndex):
+    fig = plt.figure("preds vs real metrics", figsize=(10, 8))
     fig.tight_layout()
-    plt1 = fig.add_subplot(211)
+    plt1 = fig.add_subplot(111)
     plt1.title.set_text("training and validation loss")
-    plt1.plot(np.arange(0, TRAIN_EPOCHS), results.history['loss'], color="green", label="train")
-    plt1.plot(np.arange(0, TRAIN_EPOCHS), results.history['val_loss'], color="red", label="test")
-    plt1.legend(loc='upper right')
-    plt1 = fig.add_subplot(212)
-    plt1.title.set_text("training and validation accuracy")
-    plt1.plot(np.arange(0, TRAIN_EPOCHS), results.history['accuracy'], color="green", label="train")
-    plt1.plot(np.arange(0, TRAIN_EPOCHS), results.history['val_accuracy'], color="red", label="test")
+    plt1.plot(np.arange(0, TRAIN_EPOCHS), results.history['loss'], color="green", label="real")
+    plt1.plot(np.arange(0, TRAIN_EPOCHS), results.history['val_loss'], color="red", label="preds")
     plt1.legend(loc='upper right')
 
     return fig
 #compare predictions with real
 def evalPreds(predictions, testY):
-    totalSell = 0
-    correctSell = 0
-    totalBuy = 0
-    correctBuy = 0
-
-    assert len(predictions) == len(testY)
-    for i in range(len(predictions)):
-        #add counters to find total of the acurate sell and buy indicators
-        if testY[i] == 0:
-            totalSell += 1
-        elif testY[i] == 1:
-            totalBuy += 1
-        else:
-            print("[WARNING] Soemthing isn't right.")
-
-        # maxIndex = predictions[i].index(max(predictions[i]))
-        maxIndex = np.argmax(predictions[i])
-        if maxIndex == testY[i]:
-            if testY[i] == 0:
-                correctSell += 1
-            elif testY[i] == 1:
-                correctBuy += 1
-            else:
-                print("[WARNING] Soemthing isn't right.")
-
-    print(f"Sell Accuracy: {correctSell}/{totalSell} ({round(correctSell/totalSell*100, 2)}%)")
-    print(f"Buy Accuracy: {correctBuy}/{totalBuy} ({round(correctBuy/totalBuy*100, 2)}%)\n")
-
+        # do something like what we did in pytorch
     return
 
 #ask user if they want to save the model
@@ -308,7 +307,7 @@ def getVersionName():
 #makes new folder for saved model
 def makeNewFolder(version):
     print("[INFO] Making New Model Folder.")
-    newFolderPath = f"{savedModelsPath}/{intervalMomentum}_{intervalPeriod}_{daysAhead}_{version}"
+    newFolderPath = f"{savedModelsPath}/{daysBefore}_{daysAhead}_{version}"
     os.mkdir(newFolderPath)
 
     return newFolderPath
@@ -316,38 +315,28 @@ def makeNewFolder(version):
 def saveModel(newFolderPath, bestModel):
     print("[INFO] Saving Model.")
     bestModel.save(newFolderPath)
-#saves pyplot to folder for later analysis
-def savePyPlot(results):
-    print("[INFO] Saving Pyplot.")
-    fig = getLossGraph(results)
-    plt.savefig(f"{newFolderPath}/{intervalMomentum}_{intervalPeriod}_{daysAhead}_{version}.png")
 #saves all info to text file
 def saveParameters(newFolderPath, version):
     print("[INFO] Saving Parameters.")
-    f = open(f"{newFolderPath}/{intervalMomentum}_{intervalPeriod}_{daysAhead}_{version} info.txt", 'w')
-    f.write(f"version name: {intervalMomentum}_{intervalPeriod}_{daysAhead}_{version}\n")
+    f = open(f"{newFolderPath}/{daysBefore}_{daysAhead}_{version} info.txt", 'w')
+    f.write(f"version name: {daysBefore}_{daysAhead}_{version}\n")
     f.write(f"training dates: {trainStart} to {trainEnd}\n")
     f.write(f"testing dates: {testStart} to {testEnd}\n")
-    f.write(f"intervalMomentum: {intervalMomentum} intervalPeriod: {intervalPeriod}")
-    f.write(f"days ahead: {daysAhead} \n")
+    f.write(f"days before: {daysBefore} days ahead: {daysAhead} \n")
     f.close()
 
 #get days before and ahead from saved model name
 #change this to parse intervals
-def parseIntervals():
+def parseDaysBeforeAndAhead():
     index1 = savedModelName.find("_")
-    intervalMomentum = int(savedModelName[:index1])
-    print(f"parsed intervalMomentum: {intervalMomentum}")
+    daysBefore = int(savedModelName[:index1])
+    print(f"parsed daysBefore: {daysBefore}")
     savedModelName2 = savedModelName[index1+1:]
     index2 = savedModelName2.find("_")
-    intervalPeriod = int(savedModelName2[:index2])
-    print(f"parsed intervalPeriod: {intervalPeriod}")
-    savedModelName3 = savedModelName[index2+1:]
-    index3 = savedModelName3.find("_")
-    intervalPeriod = int(savedModelName3[:index4])
+    daysAhead = int(savedModelName2[:index2])
     print(f"parsed daysAhead: {daysAhead}")
 
-    return intervalMomentum, intervalPeriod, daysAhead
+    return daysBefore, daysAhead
 #get x days in past excluding holidays and weekends
 def getDateInPast(initial, days):
     #inspiration from https://stackoverflow.com/a/12691993
@@ -398,7 +387,7 @@ class CNN():
         self.model.add(layers.Dense(120, activation = 'relu'))
         self.model.add(layers.Dense(60, activation = 'relu'))
         self.model.add(layers.Dense(20, activation = 'relu'))
-        self.model.add(layers.Dense(2, activation = 'softmax'))
+        self.model.add(layers.Dense(2))
 
         #lr=0.001, momentum=0.9
         self.optimizer = optimizers.SGD(lr=0.0001)
@@ -487,14 +476,15 @@ def loadData():
     print(f"target shape train: {len(trainY)}")
     print(f"target shape test: {len(testY)}")
 
-    # print(trainY)
-
     saveDataSet(dataPath, trainX, trainY, testX, testY)
 
 #train it with CNN
 def train():
     classes = ["sell", "buy"]
     trainX, trainY, testX, testY = loadDataSet(dataPath)
+
+    # trainX = np.log(trainX)
+    # testX = np.log(testX)
 
     # numStocks = getNumStocks(testX, trainX)
     cnn = CNN((intervalPeriod, 1))
@@ -522,17 +512,8 @@ def test():
 
     print(f"[INFO] Making Predictions.")
     predictions = bestModel.predict(testX)
-    print(predictions)
 
-    evalPreds(predictions, testY)
-
-    # histTestIndex = getData(f"{STOCK}", testStart, testEnd)
-    # histTestIndex = histTestIndex.iloc[daysBefore+daysAhead-1:]
-    fig = getLossGraph(results)
-    plt.savefig(graphPath)
-    plt.show()
-
-    #also make graph of predictions vs testY? and can plot last momentum vs if correct sell or buy
+# MAKE LOSS GRAPH
 
     #ask to save model if new model
     if NEW_MODEL:
@@ -541,9 +522,11 @@ def test():
             version = getVersionName()
 
             newFolderPath = makeNewFolder(version)
-            # saveIncludedStocks(newFolderPath)
+            saveIncludedStocks(newFolderPath)
             saveModel(newFolderPath, bestModel)
-            saveParameters(newFolderPath, version)
+
+            numStocks = getNumStocks(testX, trainX)
+            saveParameters(newFolderPath, version, numStocks)
 
 #predict future date
 def PredictOnDate():

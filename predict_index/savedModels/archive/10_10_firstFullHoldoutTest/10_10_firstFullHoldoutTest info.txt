@@ -1,6 +1,0 @@
-version name: 10_10_firstFullHoldoutTest
-training dates: 2018-1-1 to 2019-12-31
-testing dates: 2020-1-1 to 2020-12-31
-holdout dates: 2021-1-1 to 2021-5-4
-days before: 10 days ahead: 10 
-number of stocks included: 500
